@@ -51,7 +51,7 @@ A secure, headless certificate management platform that enables organizations to
 3. **Single Admin Constraint** - System enforces only one active admin at a time
 4. **Complete Version History** - All certificate updates are archived and reversible
 5. **Stateless Verification** - QR codes contain all necessary cryptographic proof
-
+<!-- 
 ## Use Cases
 
 - Education Institutions: Issue digital diplomas and certificates with QR codes that employers can scan for instant verification
@@ -126,4 +126,4 @@ Basic setup involves starting containers, running migrations, and creating the f
 - API documentation available at `/api/docs` when running
 - OpenAPI specification for client generation
 - Audit logs for troubleshooting
-- Health check endpoints for monitoring
+- Health check endpoints for monitoring -->
