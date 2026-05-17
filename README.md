@@ -1,129 +1,58 @@
-# Hydra
+<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
-## Overview
+<p align="center">
+<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
+<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
+<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
+<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
+</p>
 
-A secure, headless certificate management platform that enables organizations to issue, store, and verify digital certificates through cryptographic QR codes. The system implements ephemeral viewing links that strictly adhere to certificate expiration timelines - when a certificate expires, all access links automatically expire as well.
+## About Laravel
 
-## Core Functionality
+Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
 
-### For Certificate Issuers
-- Upload and store certificate files (PDF format)
-- Set expiration dates and manage certificate lifecycle
-- Generate cryptographically signed QR codes for each certificate
-- Update certificate files with complete version history
-- Revoke certificates instantly when needed
-- Regenerate QR codes to invalidate old ones
-- View audit logs of all verifications
+- [Simple, fast routing engine](https://laravel.com/docs/routing).
+- [Powerful dependency injection container](https://laravel.com/docs/container).
+- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
+- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
+- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
+- [Robust background job processing](https://laravel.com/docs/queues).
+- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
 
-### For Certificate Holders
-- Access personal certificates using email verification
-- Download QR codes for their certificates
-- Check certificate validity status
-- Request renewal notifications
+Laravel is accessible, powerful, and provides tools required for large, robust applications.
 
-### For Verifiers
-- Scan QR codes to verify certificate authenticity
-- View certificate details without downloading
-- Download verified certificates
-- Real-time validity checking (expired/revoked certificates are rejected instantly)
+## Learning Laravel
 
-## Technical Architecture
+Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
 
-### Backend Stack
-- **FastAPI** - Async web framework for high concurrency
-- **PostgreSQL** - Primary database for metadata and audit logs
-- **Redis** - Caching layer for session tokens and rate limiting
-- **MinIO / S3** - Object storage for certificate files
-- **Docker** - Containerized deployment
+In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
 
-### Security Features
-- **HMAC-SHA256 Signatures** - QR codes cannot be tampered with or forged
-- **Ephemeral Session Tokens** - Maximum 15-minute validity, bound to certificate expiry
-- **Real-time Validation** - Every file access checks current certificate status
-- **API Key Authentication** - Secure access for issuers and admins
-- **Rate Limiting** - Prevents brute force attacks
-- **Audit Logging** - Complete trail of all access and modifications
+You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
 
-### Key Design Principles
+## Agentic Development
 
-1. **No Long-lived Links** - Every access requires fresh validation
-2. **Certificate-first Expiry** - Links expire when certificates expire, never longer
-3. **Single Admin Constraint** - System enforces only one active admin at a time
-4. **Complete Version History** - All certificate updates are archived and reversible
-5. **Stateless Verification** - QR codes contain all necessary cryptographic proof
-<!-- 
-## Use Cases
+Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
 
-- Education Institutions: Issue digital diplomas and certificates with QR codes that employers can scan for instant verification
+```bash
+composer require laravel/boost --dev
 
-- Professional Certifications: Manage certification lifecycle with automated expiry and renewal workflows
+php artisan boost:install
+```
 
-- Compliance Documentation: Track document versions, access logs, and maintain audit trails for regulatory requirements
+Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
 
-- Corporate Training: Issue completion certificates that can be verified by internal systems or external partners
+## Contributing
 
-## Deployment Options
+Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
 
-- **Docker Compose** - Local development and small-scale deployments
-- **Kubernetes** - Production-scale deployments with auto-scaling
-- **Cloud Services** - AWS, GCP, or Azure with managed PostgreSQL and Redis
+## Code of Conduct
 
-## API-First Design
+In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
 
-The platform is headless by design, providing:
-- RESTful API for all operations
-- Automatic OpenAPI documentation (Swagger UI)
-- Webhook support for certificate events
-- Simple HTML viewer for QR code scanning
+## Security Vulnerabilities
 
-## Compliance Ready
+If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
 
-- **Audit Trails** - All actions logged with timestamps and actor information
-- **Data Integrity** - SHA-256 hashing ensures file authenticity
-- **Access Control** - Granular role-based permissions
-- **Retention Policies** - Configurable log and file retention
+## License
 
-## Performance Characteristics
-
-- Sub-50ms verification latency for cached certificates
-- Support for 1000+ concurrent verifications
-- 10MB maximum file size per certificate
-- 90-day audit log retention (configurable)
-
-## Integration Capabilities
-
-- **Webhook Notifications** - Certificate verification events
-- **Email Integration** - Holder notifications for updates
-- **LDAP/SSO** - Enterprise authentication (pluggable)
-- **Custom Storage** - Any S3-compatible backend
-
-## Target Environments
-
-- Enterprise internal certificate management
-- Educational technology platforms
-- Professional certification bodies
-- Government document verification
-- Blockchain credential anchoring (extensible)
-
-## Limitations
-
-- PDF files only (enforced for consistency)
-- 10MB maximum file size
-- Single active admin enforced at database level
-- Session tokens max 15 minutes (configurable)
-
-## Getting Started
-
-The platform requires:
-- Docker and Docker Compose
-- 2GB RAM minimum (4GB recommended)
-- 10GB storage for certificates (scalable)
-
-Basic setup involves starting containers, running migrations, and creating the first admin user. The system is ready to issue certificates within minutes of deployment.
-
-## Support and Documentation
-
-- API documentation available at `/api/docs` when running
-- OpenAPI specification for client generation
-- Audit logs for troubleshooting
-- Health check endpoints for monitoring -->
+The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
