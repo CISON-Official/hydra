@@ -8,6 +8,7 @@ dependencies = [
     "aioboto3>=15.5.0",
     "aiofiles>=25.1.0",
     "aioredis>=2.0.1",
+    "aiosqlite>=0.22.1",
     "alembic>=1.18.4",
     "asyncpg>=0.31.0",
     "cryptography>=47.0.0",
