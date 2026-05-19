@@ -1,11 +1,11 @@
 <?php
 /**
  * Plugin Name: Advanced Certificate Manager with QR Verification
- * Plugin URI:  https://example.com/advanced-certificate-manager
+ * Plugin URI:  https://docs.cison.org.ng
  * Description: Issues HMAC-secured certificates with QR verification, using custom tables.
  * Version:     1.0.0
- * Author:      Your Name
- * Text Domain: acmqr
+ * Author:      Franklin
+ * Text Domain: 
  * Domain Path: /languages
  */
 
