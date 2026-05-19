@@ -10,7 +10,7 @@ class CertificateProfile
     public function __construct()
     {
 
-        add_action('bp_setup_nav', [$this, 'add_certificate_to_profile_tag'], 20);
+        add_action('bp_setup_nav', array($this, 'add_certificate_to_profile_tag'), 20);
     }
 
     public function add_certificate_to_profile_tag()
