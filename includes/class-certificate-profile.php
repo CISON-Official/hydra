@@ -2,6 +2,7 @@
 /**
  * Certificates Profile Tab (BuddyPress / BuddyBoss)
  */
+namespace Certificates\Includes;
 
 class CertificateProfile
 {
