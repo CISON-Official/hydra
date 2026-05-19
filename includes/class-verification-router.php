@@ -108,7 +108,9 @@ class VerificationRouter
         }
 
         $secure_auth = Config::get('SSSECURE_AUTH_KEY', '');
-
+        error_log('SSSECURE_AUTH_KEY value: ' . ($secure_auth ?: '[EMPTY - NOT SET]'));
+        error_log('Expected HMAC: ' . hash_hmac('sha256', $key, $secure_auth));
+        error_log('Provided HMAC: ' . $hmac);
         // Constant-time HMAC comparison using WordPress native key
         $expected_hmac = hash_hmac('sha256', $key, $secure_auth);
         if (!hash_equals($expected_hmac, $hmac)) {
