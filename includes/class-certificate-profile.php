@@ -15,7 +15,7 @@ class CertificateProfile
     {
         bp_core_new_nav_item([
             'name' => __('Certificates', 'textdomain'),
-            'slug' => '/certificates-profile',
+            'slug' => 'certificates-profile',
             'position' => 55,
             'screen_function' => array($this, 'view_certificates_screen'),
             'default_subnav_slug' => 'certificates-profile',
