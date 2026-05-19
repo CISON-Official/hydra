@@ -47,6 +47,8 @@ class VerificationRouter
         $key = isset($_GET['key']) ? sanitize_text_field($_GET['key']) : '';
         $hmac = isset($_GET['hmac']) ? sanitize_text_field($_GET['hmac']) : '';
 
+        error_log("Key: $key hmac: $hmac");
+
         if (empty($key) || empty($hmac)) {
             wp_safe_redirect(home_url());
             exit;
