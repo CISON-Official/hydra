@@ -43,14 +43,10 @@ class VerificationRouter
             return;
         }
 
-        error_log('=== handle_early_routing fired ===');
-        error_log('GET params: ' . print_r($_GET, true));
-
         // Validate required parameters
         $key = isset($_GET['key']) ? sanitize_text_field($_GET['key']) : '';
         $hmac = isset($_GET['hmac']) ? sanitize_text_field($_GET['hmac']) : '';
 
-        error_log("Key: $key hmac: $hmac");
 
         if (empty($key) || empty($hmac)) {
             wp_safe_redirect(home_url());
@@ -111,9 +107,6 @@ class VerificationRouter
         }
 
         $secure_auth = Config::get('SSSECURE_AUTH_KEY', '');
-        error_log('SSSECURE_AUTH_KEY value: ' . ($secure_auth ?: '[EMPTY - NOT SET]'));
-        error_log('Expected HMAC: ' . hash_hmac('sha256', $key, $secure_auth));
-        error_log('Provided HMAC: ' . $hmac);
         // Constant-time HMAC comparison using WordPress native key
         $expected_hmac = hash_hmac('sha256', $key, $secure_auth);
         if (!hash_equals($expected_hmac, $hmac)) {
