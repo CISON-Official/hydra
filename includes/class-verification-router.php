@@ -43,6 +43,9 @@ class VerificationRouter
             return;
         }
 
+        error_log('=== handle_early_routing fired ===');
+        error_log('GET params: ' . print_r($_GET, true));
+
         // Validate required parameters
         $key = isset($_GET['key']) ? sanitize_text_field($_GET['key']) : '';
         $hmac = isset($_GET['hmac']) ? sanitize_text_field($_GET['hmac']) : '';
