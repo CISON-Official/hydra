@@ -6,10 +6,8 @@ namespace Certificates\Includes;
 
 class CertificateProfile
 {
-
     public function __construct()
     {
-
         add_action('bp_setup_nav', array($this, 'add_certificate_to_profile_tag'), 20);
     }
 
@@ -17,38 +15,36 @@ class CertificateProfile
     {
         bp_core_new_nav_item([
             'name' => __('Certificates', 'textdomain'),
-            'slug' => 'profile/certificates',
+            'slug' => '/certificates-profile',
             'position' => 55,
-            'screen_function' => 'view_certificates_screen',
-            'default_subnav_slug' => 'profile/certificates',
+            'screen_function' => array($this, 'view_certificates_screen'),
+            'default_subnav_slug' => 'certificates-profile',
             'item_css_id' => 'certificates_section_style'
         ]);
     }
 
-    function view_certificates_screen()
+    public function view_certificates_screen()
     {
         add_action('bp_template_content', array($this, 'certificates_links_content'));
         bp_core_load_template('members/single/profile');
-        error_log("Trying to run this");
     }
 
     /**
      * Fetch user certificates
      */
-    function bbc_get_user_certificates(int $user_id): array
+    public function bbc_get_user_certificates(int $user_id): array
     {
         global $wpdb;
 
         $table = $wpdb->prefix . 'cert_registry';
 
-        // Check table exists
         if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table)) !== $table) {
             return [];
         }
 
         return $wpdb->get_results(
             $wpdb->prepare(
-                "SELECT * FROM {$table} WHERE user_id = %d ORDER BY created_at DESC",
+                "SELECT * FROM {$table} WHERE user_id = %d ORDER BY date_issued DESC",
                 $user_id
             )
         ) ?: [];
@@ -57,7 +53,7 @@ class CertificateProfile
     /**
      * Render content
      */
-    function certificates_links_content()
+    public function certificates_links_content()
     {
         echo $this->list_certificates_content_template();
     }
@@ -65,10 +61,8 @@ class CertificateProfile
     /**
      * Template output
      */
-    function list_certificates_content_template(): string
+    public function list_certificates_content_template(): string
     {
-
-
         $displayed_user_id = bp_displayed_user_id();
 
         if (!$displayed_user_id) {
@@ -88,15 +82,17 @@ class CertificateProfile
                     <?php esc_html_e('No certificates found.', 'buddyboss-certificates'); ?>
                 </p>
             </div>
+
         <?php else: ?>
             <ul class="bbc-list">
                 <?php foreach ($certificates as $cert):
 
                     $path = $cert->file_url ?? '';
-                    $name = $cert->name ?? __('Untitled Certificate', 'buddyboss-certificates');
 
-                    $created_at = $cert->created_at ?? '';
-                    $expire_at = $cert->expire_date ?? '';
+
+                    $name = $cert->name ?? __('Untitled Certificate', 'buddyboss-certificates');
+                    $created_at = $cert->date_issued ?? '';
+                    $expire_at = $cert->date_expiry ?? '';
 
                     $is_expired = !empty($expire_at) && strtotime($expire_at) < time();
 
