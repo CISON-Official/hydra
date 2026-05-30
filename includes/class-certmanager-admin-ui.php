@@ -227,12 +227,12 @@ class CertManager_Admin_UI
         $debug_logs[] = "Found " . count($certificates) . " rows in Table A to process.";
         $inserted_count = 0;
 
-        foreach ($certificates as $index => $cert) {
+        foreach ($certificates as $cert) {
             $user_id = $cert->user_id;
-            $row_num = $index + 1;
+
 
             if (empty($cert->user_id)) {
-                $debug_logs[] = "Row #{$row_num}: Skipped. user_id is empty.";
+                $debug_logs[] = "Row #{$cert}: Skipped. user_id is empty.";
                 continue;
             }
 
