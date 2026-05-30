@@ -148,6 +148,18 @@ class CertManager_Admin_UI
                     statusDiv.show().css(STATES[state]).text(message);
                 }
 
+                function diplayLogs(response) {
+                    console.log("=== CISON SYNC DEBUG LOGS ===");
+                    if (response.data && response.data.logs) {
+                        response.data.logs.forEach(function (logLine) {
+                            console.log(logLine);
+                        });
+                    } else {
+                        console.log("No logs returned from server.", response);
+                    }
+                    console.log("=============================");
+                }
+
                 btn.on('click', function (e) {
                     e.preventDefault();
                     btn.prop('disabled', true).text('<?php echo esc_js(__('Processing Sync...', 'acmqr')); ?>');
@@ -158,17 +170,20 @@ class CertManager_Admin_UI
                         nonce: '<?php echo esc_js($sync_nonce); ?>',
                     })
                         .done(function (response) {
+                            diplayLogs(response);
                             if (response.success) {
-                                setState('success', response.data);
+                                setState('success', response.data.message);
                                 setTimeout(() => window.location.replace(window.location.pathname + window.location.search.replace(/[&?]paged=\d+/, '')), 10000);
                             } else {
-                                setState('error', response.data);
+                                setState('error', response.data.message);
                             }
                         })
-                        .fail(function () {
+                        .fail(function (response) {
+                            // diplayLogs(response);
                             setState('error', '<?php echo esc_js(__('Request failed. Please try again.', 'acmqr')); ?>');
                         })
-                        .always(function () {
+                        .always(function (response) {
+                            // diplayLogs(response);
                             btn.prop('disabled', false).text('<?php echo esc_js(__('Sync Membership Status', 'acmqr')); ?>');
                         });
                 });
@@ -194,18 +209,30 @@ class CertManager_Admin_UI
         $source_table = CISON_CERT_TABLE;
         $target_table = $this->registry_table;
 
+        $debug_logs = array();
+        $debug_logs[] = "Starting sync process...";
+        $debug_logs[] = "Table A: " . $source_table;
+        $debug_logs[] = "Table B: " . $target_table;
+
         $certificates = $wpdb->get_results(
             "SELECT user_id, email, date_issued, firstname, surname FROM {$source_table}"
         );
 
         if (empty($certificates)) {
-            wp_send_json_error(__('No records found in the base certificate table.', 'acmqr'));
+            $debug_logs[] = "ERROR: Table A is completely empty or query failed: " . $wpdb->last_error;
+            wp_send_json_error(["message" => __('No records found in the base certificate table.', 'acmqr'), "logs" => $debug_logs]);
+            return;
         }
 
+        $debug_logs[] = "Found " . count($certificates) . " rows in Table A to process.";
         $inserted_count = 0;
 
-        foreach ($certificates as $cert) {
+        foreach ($certificates as $index => $cert) {
+            $user_id = $cert->user_id;
+            $row_num = $index + 1;
+
             if (empty($cert->user_id)) {
+                $debug_logs[] = "Row #{$row_num}: Skipped. user_id is empty.";
                 continue;
             }
 
@@ -222,6 +249,9 @@ class CertManager_Admin_UI
                 continue;
             }
 
+            $debug_logs[] = "  -> Condition 1 PASSED: User ID {$user_id} exists in Table B.";
+
+
             // Skip if the matching membership-year row already exists.
             $row_exists = (bool) $wpdb->get_var($wpdb->prepare(
                 "SELECT COUNT(*) FROM {$target_table} WHERE user_id = %d AND cert_name = %s",
@@ -232,6 +262,9 @@ class CertManager_Admin_UI
             if (!$row_exists) {
                 continue;
             }
+
+            $debug_logs[] = "  -> Condition 2 PASSED: Found matching cert_name '{$membership_label}' for user_id '{$user_id} this user.";
+
 
             $full_name = trim($cert->firstname . ' ' . $cert->surname);
             $unique_key = md5($user_id . $membership_label . time() . uniqid());
@@ -259,11 +292,14 @@ class CertManager_Admin_UI
             }
         }
 
-        wp_send_json_success(sprintf(
-            /* translators: %d: number of new registry entries created */
-            __('Sync complete. Created %d new matching entr%s in the registry.', 'acmqr'),
-            $inserted_count,
-            $inserted_count === 1 ? 'y' : 'ies'
-        ));
+        wp_send_json_success([
+            "message" => sprintf(
+                /* translators: %d: number of new registry entries created */
+                __('Sync complete. Created %d new matching entr%s in the registry.', 'acmqr'),
+                $inserted_count,
+                $inserted_count === 1 ? 'y' : 'ies'
+            ),
+            "logs" => $debug_logs
+        ]);
     }
 }
