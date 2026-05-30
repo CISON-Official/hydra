@@ -148,16 +148,15 @@ class CertManager_Admin_UI
                     statusDiv.show().css(STATES[state]).text(message);
                 }
 
-                function diplayLogs(response) {
-                    console.log("=== CISON SYNC DEBUG LOGS ===");
-                    if (response.data && response.data.logs) {
-                        response.data.logs.forEach(function (logLine) {
-                            console.log(logLine);
-                        });
+                function displayLogs(response) {
+                    console.group('=== CISON SYNC DEBUG LOGS ===');
+                    const logs = response?.data?.logs;
+                    if (Array.isArray(logs) && logs.length) {
+                        logs.forEach(line => console.log(line));
                     } else {
-                        console.log("No logs returned from server.", response);
+                        console.log('No logs returned from server.', response);
                     }
-                    console.log("=============================");
+                    console.groupEnd();
                 }
 
                 btn.on('click', function (e) {
@@ -170,20 +169,18 @@ class CertManager_Admin_UI
                         nonce: '<?php echo esc_js($sync_nonce); ?>',
                     })
                         .done(function (response) {
-                            diplayLogs(response);
+                            displayLogs(response);
                             if (response.success) {
                                 setState('success', response.data.message);
-                                setTimeout(() => window.location.replace(window.location.pathname + window.location.search.replace(/[&?]paged=\d+/, '')), 10000);
                             } else {
-                                setState('error', response.data.message);
+                                setState('error', response.data.message ?? '<?php echo esc_js(__('An unknown error occurred.', 'acmqr')); ?>');
                             }
                         })
                         .fail(function (response) {
-                            // diplayLogs(response);
+                            displayLogs(response);
                             setState('error', '<?php echo esc_js(__('Request failed. Please try again.', 'acmqr')); ?>');
                         })
-                        .always(function (response) {
-                            // diplayLogs(response);
+                        .always(function () {
                             btn.prop('disabled', false).text('<?php echo esc_js(__('Sync Membership Status', 'acmqr')); ?>');
                         });
                 });
@@ -201,105 +198,126 @@ class CertManager_Admin_UI
         check_ajax_referer('cison_sync_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(__('Unauthorized.', 'acmqr'));
+            wp_send_json_error([
+                'message' => __('Unauthorized access.', 'acmqr'),
+                'logs' => ['Security block: insufficient permissions.'],
+            ]);
         }
 
         global $wpdb;
 
+        $logs = [];
         $source_table = CISON_CERT_TABLE;
         $target_table = $this->registry_table;
 
-        $debug_logs = array();
-        $debug_logs[] = "Starting sync process...";
-        $debug_logs[] = "Table A: " . $source_table;
-        $debug_logs[] = "Table B: " . $target_table;
+        $logs[] = 'Starting SQL batch sync...';
+        $logs[] = "Source: {$source_table} → Target: {$target_table}";
 
-        $certificates = $wpdb->get_results(
-            "SELECT user_id, email, date_issued, firstname, surname FROM {$source_table}"
+        /*
+         * Single JOIN query replacing the original PHP loop.
+         * Returns only rows from source that satisfy BOTH conditions:
+         *   1. The user_id exists anywhere in the target table.
+         *   2. The user already has a "Membership [YYYY]" row matching their cert year.
+         *
+         * Table names cannot be parameterised via wpdb->prepare(), so they are
+         * interpolated directly — both values come from trusted internal sources
+         * (a defined constant and $wpdb->prefix), never from user input.
+         *
+         * %% is used to escape literal % signs inside FROM_UNIXTIME so that
+         * wpdb->prepare() does not treat them as sprintf placeholders.
+         */
+        $query = $wpdb->prepare(
+            "SELECT
+				a.user_id,
+				a.email,
+				a.date_issued,
+				a.firstname,
+				a.surname,
+				CONCAT( 'Membership ', FROM_UNIXTIME( a.date_issued, %s ) ) AS target_membership
+			FROM {$source_table} a
+			WHERE
+				a.user_id IS NOT NULL
+				AND a.user_id > 0
+				AND EXISTS (
+					SELECT 1 FROM {$target_table} b1
+					WHERE b1.user_id = a.user_id
+				)
+				AND EXISTS (
+					SELECT 1 FROM {$target_table} b2
+					WHERE b2.user_id = a.user_id
+					  AND b2.cert_name = CONCAT( 'Membership ', FROM_UNIXTIME( a.date_issued, %s ) )
+				)",
+            '%Y',
+            '%Y'
         );
 
-        if (empty($certificates)) {
-            $debug_logs[] = "ERROR: Table A is completely empty or query failed: " . $wpdb->last_error;
-            wp_send_json_error(["message" => __('No records found in the base certificate table.', 'acmqr'), "logs" => $debug_logs]);
-            return;
+        $matching_records = $wpdb->get_results($query);
+
+        if ($wpdb->last_error) {
+            $logs[] = 'SQL error: ' . $wpdb->last_error;
+            wp_send_json_error([
+                'message' => __('Database query failed. See logs for details.', 'acmqr'),
+                'logs' => $logs,
+            ]);
         }
 
-        $debug_logs[] = "Found " . count($certificates) . " rows in Table A to process.";
+        $total_matches = count($matching_records);
+
+        if ($total_matches === 0) {
+            $logs[] = 'Scan complete: 0 rows matched both conditions. Nothing to insert.';
+            wp_send_json_success([
+                'message' => __('Sync complete. No new records needed insertion.', 'acmqr'),
+                'logs' => $logs,
+            ]);
+        }
+
+        $logs[] = "Found {$total_matches} matching row(s). Starting insertions...";
+
         $inserted_count = 0;
+        $skipped_count = 0;
 
-        foreach ($certificates as $cert) {
-            $user_id = $cert->user_id;
+        foreach ($matching_records as $row) {
+            $user_id = (int) $row->user_id;
+            $membership_label = $row->target_membership;
+            $full_name = trim($row->firstname . ' ' . $row->surname);
+            $unique_key = md5($user_id . $membership_label . current_time('mysql') . uniqid());
 
-
-            if (empty($cert->user_id)) {
-                $debug_logs[] = "Row #{$cert}: Skipped. user_id is empty.";
-                continue;
-            }
-
-            $user_id = (int) $cert->user_id;
-            $membership_label = 'Membership ' . date('Y', (int) $cert->date_issued);
-
-            // Skip if user has no entry in the registry at all.
-            $user_in_registry = (bool) $wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$target_table} WHERE user_id = %d",
-                $user_id
-            ));
-
-            if (!$user_in_registry) {
-                continue;
-            }
-
-            $debug_logs[] = "  -> Condition 1 PASSED: User ID {$user_id} exists in Table B.";
-
-
-            // Skip if the matching membership-year row already exists.
-            $row_exists = (bool) $wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$target_table} WHERE user_id = %d AND cert_name = %s",
-                $user_id,
-                $membership_label
-            ));
-
-            if (!$row_exists) {
-                continue;
-            }
-
-            $debug_logs[] = "  -> Condition 2 PASSED: Found matching cert_name '{$membership_label}' for user_id '{$user_id} this user.";
-
-
-            $full_name = trim($cert->firstname . ' ' . $cert->surname);
-            $unique_key = md5($user_id . $membership_label . time() . uniqid());
-
-            $inserted = $wpdb->insert(
+            $result = $wpdb->insert(
                 $target_table,
                 [
                     'cert_name' => $membership_label,
                     'user_id' => $user_id,
                     'user_name' => $full_name ?: __('Synchronized Member', 'acmqr'),
-                    'user_email' => $cert->email,
+                    'user_email' => $row->email,
                     'template_id' => 'sync_generated_template',
                     'cert_key' => $unique_key,
                     'cert_hmac' => wp_hash($unique_key),
                     'is_main' => 0,
-                    'date_issued' => $cert->date_issued,
+                    'date_issued' => current_time('mysql'),
                     'date_expiry' => null,
                     'file_url' => '',
                 ],
                 ['%s', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s']
             );
 
-            if ($inserted) {
+            if ($result) {
                 $inserted_count++;
+            } else {
+                $skipped_count++;
+                $logs[] = "Insert failed for user_id={$user_id} ({$membership_label}): " . $wpdb->last_error;
             }
         }
 
+        $logs[] = "Done. Inserted: {$inserted_count}, Failed: {$skipped_count}.";
+
         wp_send_json_success([
-            "message" => sprintf(
-                /* translators: %d: number of new registry entries created */
-                __('Sync complete. Created %d new matching entr%s in the registry.', 'acmqr'),
+            'message' => sprintf(
+                /* translators: %d: number of registry entries created */
+                __('Sync complete. Created %d new entr%s in the registry.', 'acmqr'),
                 $inserted_count,
                 $inserted_count === 1 ? 'y' : 'ies'
             ),
-            "logs" => $debug_logs
+            'logs' => $logs,
         ]);
     }
 }
