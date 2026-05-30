@@ -15,10 +15,10 @@ class CertificateProfile
     {
         bp_core_new_nav_item([
             'name' => __('Certificates', 'textdomain'),
-            'slug' => 'certificates-profile',
+            'slug' => 'credential-list',
             'position' => 55,
             'screen_function' => array($this, 'view_certificates_screen'),
-            'default_subnav_slug' => 'certificates-profile',
+            'default_subnav_slug' => 'credential-list',
             'item_css_id' => 'certificates_section_style'
         ]);
     }
@@ -90,7 +90,7 @@ class CertificateProfile
                     $path = $cert->file_url ?? '';
 
 
-                    $name = $cert->name ?? __('Untitled Certificate', 'buddyboss-certificates');
+                    $name = $cert->name;
                     $created_at = $cert->date_issued ?? '';
                     $expire_at = $cert->date_expiry ?? '';
 
