@@ -207,7 +207,7 @@ class CertificateProfile
 
         $current_user_id = get_current_user_id();
         if ((int) $cert->user_id !== (int) $current_user_id || !current_user_can('manage_options')) {
-            wp_die(__('You do not have permission to download this certificate.', 'buddyboss-certificates'), 403);
+            wp_die(__('You do not have permission to download this certificate. UserID: ' . $cert->user_id . ' CurrentUser: ' . $current_user_id, 'buddyboss-certificates'), 403);
         }
 
         $file_path = $cert->file_url;
