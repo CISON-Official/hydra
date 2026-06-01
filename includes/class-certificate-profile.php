@@ -222,7 +222,7 @@ class CertificateProfile
 
 
         if (empty($file_path) || !file_exists($file_path)) {
-            wp_die(__('The certificate file could not be found on the server.' . 'Filepath: ' . $file_path . " StoredFile: " . $stored_file . ' From Cert: ' . $cert->file_url, 'buddyboss-certificates'), 404);
+            wp_die(__('The certificate file could not be found on the server.' . 'Filepath: ' . $file_path . " StoredFile: " . $stored_file . ' From Cert: ' . $cert->cert_name, 'buddyboss-certificates'), 404);
         }
 
         // 6. Clean buffers and push the file download headers
