@@ -90,7 +90,7 @@ class CertificateProfile
                     $path = $cert->file_url ?? '';
 
 
-                    $name = $cert->name;
+                    $name = $cert->cert_name;
                     $created_at = $cert->date_issued ?? '';
                     $expire_at = $cert->date_expiry ?? '';
 
@@ -152,11 +152,18 @@ class CertificateProfile
                                 </div>
                             </div>
 
-                            <?php if (!empty($path)): ?>
-                                <a href="<?php echo esc_url($path); ?>" class="bbc-view-btn" target="_blank" rel="noopener noreferrer">
-                                    <?php esc_html_e('View Certificate', 'buddyboss-certificates'); ?>
+                            <?php if (!empty($path)):
+                                // Generate a secure download URL using WordPress AJAX
+                                $download_url = wp_nonce_url(
+                                    admin_url('admin-ajax.php?action=bbc_download_certificate&cert_id=' . $cert->id),
+                                    'bbc_download_cert_' . $cert->cert_hmac
+                                );
+                                ?>
+                                <a href="<?php echo esc_url($download_url); ?>" class="bbc-view-btn">
+                                    <?php esc_html_e('Download Certificate', 'buddyboss-certificates'); ?>
                                 </a>
                             <?php endif; ?>
+
                         </div>
 
                     </li>
@@ -168,4 +175,74 @@ class CertificateProfile
         <?php
         return ob_get_clean();
     }
+
+    /**
+     * Processes and serves the private certificate download securely.
+     */
+    public function handle_certificate_download(): void
+    {
+        // 1. Verify user identity
+        if (!is_user_logged_in()) {
+            wp_die(__('You must be logged in to download certificates.', 'buddyboss-certificates'), 403);
+        }
+
+        $cert_id = isset($_GET['cert_id']) ? absint($_GET['cert_id']) : 0;
+
+        // 2. Verify security nonce
+        if (!check_admin_referer('bbc_download_cert_' . $cert_id)) {
+            wp_die(__('Security check failed.', 'buddyboss-certificates'), 403);
+        }
+
+        // 3. Fetch certificate metadata from database using your existing logic
+        // (Adjust this part if you look up certificates differently, e.g., via global $wpdb)
+        $cert = $this->bbc_get_single_certificate($cert_id);
+        if (!$cert) {
+            wp_die(__('Certificate not found.', 'buddyboss-certificates'), 404);
+        }
+
+        // 4. Double check ownership: Only allow the owner (or administrators) to download
+        $current_user_id = get_current_user_id();
+        if ((int) $cert->user_id !== $current_user_id && !current_user_can('manage_options')) {
+            wp_die(__('You do not have permission to download this certificate.', 'buddyboss-certificates'), 403);
+        }
+
+        // 5. Convert database file path/URL to an absolute server path
+        $file_path = $this->get_absolute_private_path($cert->file_url);
+
+        if (empty($file_path) || !file_exists($file_path)) {
+            wp_die(__('The certificate file could not be found on the server.', 'buddyboss-certificates'), 404);
+        }
+
+        // 6. Clean buffers and push the file download headers
+        $filename = basename($file_path);
+        $mime_type = wp_check_filetype($file_path)['type'] ?: 'application/octet-stream';
+
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+
+        header('Content-Description: File Transfer');
+        header('Content-Type: ' . $mime_type);
+        header('Content-Disposition: attachment; filename="' . esc_attr($filename) . '"');
+        header('Expires: 0');
+        header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+        header('Pragma: public');
+        header('Content-Length: ' . filesize($file_path));
+
+        readfile($file_path);
+        exit;
+    }
+
+    /**
+     * Helper to convert stored path/URL into an absolute system directory path.
+     */
+    private function get_absolute_private_path(string $stored_path): string
+    {
+
+        $upload_dir = wp_upload_dir();
+        $base_private_dir = $upload_dir['basedir'] . '/private-certificates/';
+
+        return $base_private_dir . basename($stored_path);
+    }
+
 }
