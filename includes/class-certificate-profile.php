@@ -241,6 +241,7 @@ class CertificateProfile
         header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
         header('Pragma: public');
         header('Content-Length: ' . filesize($file_path));
+        header("X-Sendfile: " . $file_path);
 
         readfile($file_path);
         exit;
