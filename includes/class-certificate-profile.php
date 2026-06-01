@@ -135,8 +135,6 @@ class CertificateProfile
                         <div class="bbc-list-details">
                             <h3 class="bbc-list-name">
                                 <?php echo esc_html($name); ?>
-                                Current User: <?php echo esc_html($current_user_id); ?>
-                                User: <?php echo esc_html($cert->user_id); ?>
                             </h3>
 
                             <div class="bbc-list-meta">
