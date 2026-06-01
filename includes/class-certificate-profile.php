@@ -216,13 +216,14 @@ class CertificateProfile
 
         // 5. Convert database file path/URL to an absolute server path
         // Let's use the file path string column from your registry table
-        $stored_file = $cert->file_url;
+        $file_path = $cert->file_url;
 
-        $file_path = $this->get_absolute_private_path((string) $stored_file);
+        // $file_path = $this->get_absolute_private_path((string) $stored_file);
+
 
 
         if (empty($file_path) || !file_exists($file_path)) {
-            wp_die(__('The certificate file could not be found on the server.' . 'Filepath: ' . $file_path . " StoredFile: " . $stored_file . ' From Certname: ' . $cert->cert_name, 'buddyboss-certificates'), 404);
+            wp_die(__('The certificate file could not be found on the server.', 'buddyboss-certificates'), 404);
         }
 
         // 6. Clean buffers and push the file download headers
