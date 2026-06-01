@@ -10,6 +10,8 @@ class CertificateProfile
     {
         add_action('bp_setup_nav', array($this, 'add_certificate_to_profile_tag'), 20);
         add_action('wp_enqueue_scripts', [$this, 'enqueue_certificate_styles']);
+        add_action('wp_ajax_bbc_download_certificate', [$this, 'handle_certificate_download']);
+
     }
 
     public function add_certificate_to_profile_tag()
@@ -156,9 +158,10 @@ class CertificateProfile
 
                             <?php if (!empty($path)):
                                 // Generate a secure download URL using WordPress AJAX
-                                $download_url = wp_nonce_url(
-                                    admin_url('admin-ajax.php?action=bbc_download_certificate&cert_id=' . $cert->id),
-                                    'bbc_download_cert_' . $cert->cert_hmac
+                                $download_url = admin_url(
+                                    'admin-ajax.php?action=bbc_download_certificate' .
+                                    '&cert_key=' . urlencode($cert->cert_key) .
+                                    '&cert_hmac=' . urlencode($cert->cert_hmac)
                                 );
                                 ?>
                                 <a href="<?php echo esc_url($download_url); ?>" class="bbc-view-btn">
@@ -188,16 +191,16 @@ class CertificateProfile
             wp_die(__('You must be logged in to download certificates.', 'buddyboss-certificates'), 403);
         }
 
-        $cert_id = isset($_GET['cert_id']) ? absint($_GET['cert_id']) : 0;
+        $cert_key = isset($_GET['cert_key']) ? sanitize_text_field($_GET['cert_key']) : '';
+        $cert_hmac = isset($_GET['cert_hmac']) ? sanitize_text_field($_GET['cert_hmac']) : '';
 
-        // 2. Verify security nonce
-        if (!check_admin_referer('bbc_download_cert_' . $cert_id)) {
+        // Verify security nonce using the cert_key
+        if (!check_admin_referer('bbc_download_cert_' . $cert_key)) {
             wp_die(__('Security check failed.', 'buddyboss-certificates'), 403);
         }
 
-        // 3. Fetch certificate metadata from database using your existing logic
-        // (Adjust this part if you look up certificates differently, e.g., via global $wpdb)
-        $cert = $this->bbc_get_single_certificate($cert_id);
+        // Fetch single record using your updated method
+        $cert = $this->get_single_certificate($cert_key, $cert_hmac);
         if (!$cert) {
             wp_die(__('Certificate not found.', 'buddyboss-certificates'), 404);
         }
@@ -258,6 +261,25 @@ class CertificateProfile
                 '1.0.0'
             );
         }
+    }
+
+    public function get_single_certificate(string $cert_key, string $cert_hmac)
+    {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'cert_registry';
+
+        if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table)) !== $table) {
+            return null;
+        }
+
+        return $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT * FROM {$table} WHERE cert_key = %s AND cert_hmac = %s ORDER BY date_issued DESC LIMIT 1",
+                $cert_key,
+                $cert_hmac
+            )
+        ) ?: null;
     }
 
 }
