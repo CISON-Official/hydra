@@ -206,8 +206,8 @@ class CertificateProfile
         }
 
         $current_user_id = get_current_user_id();
-        if ((int) $cert->user_id !== (int) $current_user_id || !current_user_can('manage_options')) {
-            wp_die(__('You do not have permission to download this certificate. UserID: ' . $cert->user_id . ' CurrentUser: ' . $current_user_id, 'buddyboss-certificates'), 403);
+        if ((int) $cert->user_id !== (int) $current_user_id && !current_user_can('manage_options')) {
+            wp_die(__('You do not have permission to download this certificate.', 'buddyboss-certificates'), 403);
         }
 
         $file_path = $cert->file_url;
@@ -215,7 +215,7 @@ class CertificateProfile
         if (empty($file_path) || !file_exists($file_path)) {
             wp_die(__('The certificate file could not be found on the server.', 'buddyboss-certificates'), 404);
         }
-        
+
         $filename = basename($file_path);
         $mime_type = wp_check_filetype($file_path)['type'] ?: 'application/octet-stream';
 
