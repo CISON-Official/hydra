@@ -248,7 +248,8 @@ class CertificateProfile
         $handle = fopen($file_path, 'rb');
         if ($handle !== false) {
             while (!feof($handle)) {
-                echo fread($handle, 8192); 
+                $chunk_size = 1048576; 
+                echo fread($handle, $chunk_size); 
                 if (connection_status() !== 0) {
                     fclose($handle);
                     exit;
