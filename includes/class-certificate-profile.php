@@ -216,7 +216,7 @@ class CertificateProfile
 
         // 5. Convert database file path/URL to an absolute server path
         // Let's use the file path string column from your registry table
-        $stored_file = !empty($cert->file_path) ? $cert->file_path : ($cert->file_url ?? '');
+        $stored_file = $cert->file_url;
 
         $file_path = $this->get_absolute_private_path((string) $stored_file);
 
