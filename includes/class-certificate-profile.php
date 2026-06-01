@@ -158,11 +158,13 @@ class CertificateProfile
 
                             <?php if (!empty($path)):
                                 // Generate a secure download URL using WordPress AJAX
-                                $download_url = admin_url(
+                                $ajax_url = admin_url(
                                     'admin-ajax.php?action=bbc_download_certificate' .
                                     '&cert_key=' . urlencode($cert->cert_key) .
                                     '&cert_hmac=' . urlencode($cert->cert_hmac)
                                 );
+
+                                $download_url = wp_nonce_url($ajax_url, 'bbc_download_cert_' . $cert->cert_key);
                                 ?>
                                 <a href="<?php echo esc_url($download_url); ?>" class="bbc-view-btn">
                                     <?php esc_html_e('Download Certificate', 'buddyboss-certificates'); ?>
@@ -195,14 +197,14 @@ class CertificateProfile
         $cert_hmac = isset($_GET['cert_hmac']) ? sanitize_text_field($_GET['cert_hmac']) : '';
 
         // Verify security nonce using the cert_key
-        if (!check_admin_referer('bbc_download_cert_' . $cert_key)) {
-            wp_die(__('Security check failed.', 'buddyboss-certificates'), 403);
+        if (empty($cert_key) || !check_admin_referer('bbc_download_cert_' . $cert_key)) {
+            wp_die(__('Your link has expired or security check failed.', 'buddyboss-certificates'), 403);
         }
 
-        // Fetch single record using your updated method
+        // 3. Query your database with the verified keys
         $cert = $this->get_single_certificate($cert_key, $cert_hmac);
         if (!$cert) {
-            wp_die(__('Certificate not found.', 'buddyboss-certificates'), 404);
+            wp_die(__('Certificate not found in registry.', 'buddyboss-certificates'), 404);
         }
 
         // 4. Double check ownership: Only allow the owner (or administrators) to download
@@ -256,9 +258,9 @@ class CertificateProfile
 
             wp_enqueue_style(
                 'bbc-certificates-style',
-                plugins_url('assets/css/certificates.css', __FILE__),
+                plugin_dir_url(dirname(__FILE__)) . 'assets/css/certificates.css',
                 [],
-                '1.0.0'
+                '1.0.2'
             );
         }
     }
