@@ -109,6 +109,7 @@ class CertificateProfile
 
                     $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
                     $is_image = in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'], true);
+                    $current_user_id = get_current_user_id();
                     ?>
 
                     <li class="bbc-list-row <?php echo $is_expired ? 'bbc-list-row--expired' : ''; ?>"
@@ -134,6 +135,8 @@ class CertificateProfile
                         <div class="bbc-list-details">
                             <h3 class="bbc-list-name">
                                 <?php echo esc_html($name); ?>
+                                Current User: <?php echo esc_html($current_user_id); ?>
+                                User: <?php echo esc_html($cert->user_id); ?>
                             </h3>
 
                             <div class="bbc-list-meta">
