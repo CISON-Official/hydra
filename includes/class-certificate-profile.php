@@ -280,7 +280,8 @@ class CertificateProfile
             return null;
         }
 
-        return $wpdb->get_results(
+        // CHANGED: get_results replaced with get_row
+        return $wpdb->get_row(
             $wpdb->prepare(
                 "SELECT * FROM {$table} WHERE cert_key = %s AND cert_hmac = %s ORDER BY date_issued DESC LIMIT 1",
                 $cert_key,
