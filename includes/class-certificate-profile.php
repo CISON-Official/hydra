@@ -189,7 +189,6 @@ class CertificateProfile
      */
     public function handle_certificate_download(): void
     {
-        // 1. Verify user identity
         if (!is_user_logged_in()) {
             wp_die(__('You must be logged in to download certificates.', 'buddyboss-certificates'), 403);
         }
@@ -197,36 +196,26 @@ class CertificateProfile
         $cert_key = isset($_GET['cert_key']) ? sanitize_text_field($_GET['cert_key']) : '';
         $cert_hmac = isset($_GET['cert_hmac']) ? sanitize_text_field($_GET['cert_hmac']) : '';
 
-        // Verify security nonce using the cert_key
         if (empty($cert_key) || !check_admin_referer('bbc_download_cert_' . $cert_key)) {
             wp_die(__('Your link has expired or security check failed.', 'buddyboss-certificates'), 403);
         }
 
-        // 3. Query your database with the verified keys
         $cert = $this->get_single_certificate($cert_key, $cert_hmac);
         if (!$cert) {
             wp_die(__('Certificate not found in registry.', 'buddyboss-certificates'), 404);
         }
 
-        // 4. Double check ownership: Only allow the owner (or administrators) to download
-        // $current_user_id = get_current_user_id();
-        // if ((int) $cert->user_id !== (int)$current_user_id || !current_user_can('manage_options')) {
-        //     wp_die(__('You do not have permission to download this certificate.', 'buddyboss-certificates'), 403);
-        // }
+        $current_user_id = get_current_user_id();
+        if ((int) $cert->user_id !== (int) $current_user_id || !current_user_can('manage_options')) {
+            wp_die(__('You do not have permission to download this certificate.', 'buddyboss-certificates'), 403);
+        }
 
-        // 5. Convert database file path/URL to an absolute server path
-        // Let's use the file path string column from your registry table
         $file_path = $cert->file_url;
-
-        // $file_path = $this->get_absolute_private_path((string) $stored_file);
-
-
 
         if (empty($file_path) || !file_exists($file_path)) {
             wp_die(__('The certificate file could not be found on the server.', 'buddyboss-certificates'), 404);
         }
-
-        // 6. Clean buffers and push the file download headers
+        
         $filename = basename($file_path);
         $mime_type = wp_check_filetype($file_path)['type'] ?: 'application/octet-stream';
 
@@ -241,26 +230,37 @@ class CertificateProfile
         header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
         header('Pragma: public');
         header('Content-Length: ' . filesize($file_path));
-        if (function_exists('apache_get_modules') && in_array('mod_xsendfile', apache_get_modules(), true)) {
-            header("X-Sendfile: " . $file_path);
-            exit;
+        header('Pragma: public');
+        header('Content-Length: ' . filesize($file_path));
+
+        if (function_exists('apache_setenv')) {
+            @apache_setenv('no-gzip', '1');
+            @apache_setenv('dont-vary', '1');
         }
+        header('X-Accel-Buffering: no');
+        header('Content-Encoding: none');
+
+        $chunk_size = 1048576;
+
         $handle = fopen($file_path, 'rb');
         if ($handle !== false) {
             while (!feof($handle)) {
-                $chunk_size = 1048576; 
-                echo fread($handle, $chunk_size); 
+                echo fread($handle, $chunk_size);
                 if (connection_status() !== 0) {
                     fclose($handle);
                     exit;
                 }
-                flush(); 
+                flush();
+
+                if (function_exists('ob_flush')) {
+                    @ob_flush();
+                }
             }
             fclose($handle);
         }
 
-        // readfile($file_path);
         exit;
+
     }
 
     /**
