@@ -241,9 +241,24 @@ class CertificateProfile
         header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
         header('Pragma: public');
         header('Content-Length: ' . filesize($file_path));
-        header("X-Sendfile: " . $file_path);
+        if (function_exists('apache_get_modules') && in_array('mod_xsendfile', apache_get_modules(), true)) {
+            header("X-Sendfile: " . $file_path);
+            exit;
+        }
+        $handle = fopen($file_path, 'rb');
+        if ($handle !== false) {
+            while (!feof($handle)) {
+                echo fread($handle, 8192); 
+                if (connection_status() !== 0) {
+                    fclose($handle);
+                    exit;
+                }
+                flush(); 
+            }
+            fclose($handle);
+        }
 
-        readfile($file_path);
+        // readfile($file_path);
         exit;
     }
 
