@@ -9,6 +9,7 @@ class CertificateProfile
     public function __construct()
     {
         add_action('bp_setup_nav', array($this, 'add_certificate_to_profile_tag'), 20);
+        add_action('wp_enqueue_scripts', [$this, 'enqueue_certificate_styles']);
     }
 
     public function add_certificate_to_profile_tag()
@@ -108,7 +109,8 @@ class CertificateProfile
                     $is_image = in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'], true);
                     ?>
 
-                    <li class="bbc-list-row <?php echo $is_expired ? 'bbc-list-row--expired' : ''; ?>">
+                    <li class="bbc-list-row <?php echo $is_expired ? 'bbc-list-row--expired' : ''; ?>"
+                        style="list-style: none;padding-left: 0;margin: 0;">
 
                         <div class="bbc-list-preview">
                             <?php if ($is_image && !empty($path)): ?>
@@ -243,6 +245,19 @@ class CertificateProfile
         $base_private_dir = $upload_dir['basedir'] . '/private-certificates/';
 
         return $base_private_dir . basename($stored_path);
+    }
+
+    public function enqueue_certificate_styles(): void
+    {
+        if (function_exists('bp_is_user') && bp_is_user()) {
+
+            wp_enqueue_style(
+                'bbc-certificates-style',
+                plugins_url('assets/css/certificates.css', __FILE__),
+                [],
+                '1.0.0'
+            );
+        }
     }
 
 }

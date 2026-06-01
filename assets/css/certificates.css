@@ -1,0 +1,190 @@
+.bbc-list {
+    display: grid;
+    gap: 20px;
+    padding: 0;
+    margin: 0;
+}
+
+.bbc-list-row {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    background: #ffffff;
+    border: 2px solid #e5e7eb;
+    border-left: 6px solid #16a34a;
+    border-radius: 14px;
+    padding: 20px;
+    transition: all 0.25s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.bbc-list-row:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+.bbc-list-row--expired {
+    border-left-color: #dc2626;
+}
+
+.bbc-list-preview {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.bbc-list-thumb {
+    width: 110px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+}
+
+.bbc-list-thumb--placeholder {
+    width: 110px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+}
+
+.bbc-list-thumb-icon {
+    font-size: 32px;
+}
+
+.bbc-badge {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    padding: 6px 12px;
+    border-radius: 50px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+}
+
+.bbc-badge--active {
+    background: #16a34a;
+}
+
+.bbc-badge--expired {
+    background: #dc2626;
+}
+
+.bbc-list-details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.bbc-list-name {
+    margin: 0;
+    color: #000;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.bbc-list-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 25px;
+}
+
+.bbc-list-meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.bbc-meta-label {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #6b7280;
+    letter-spacing: .5px;
+}
+
+.bbc-meta-value {
+    color: #000;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.bbc-text--expired {
+    color: #dc2626;
+    font-weight: 700;
+}
+
+.bbc-view-btn {
+    align-self: flex-start;
+    text-decoration: none;
+    background: #16a34a;
+    color: #fff !important;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.25s ease;
+}
+
+.bbc-view-btn:hover {
+    background: #15803d;
+    color: #fff !important;
+}
+
+.bbc-list-row--expired .bbc-view-btn {
+    background: #dc2626;
+}
+
+.bbc-list-row--expired .bbc-view-btn:hover {
+    background: #b91c1c;
+}
+
+.bbc-empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    background: #fff;
+    border-radius: 14px;
+    border: 2px dashed #d1d5db;
+}
+
+.bbc-empty-icon {
+    display: block;
+    font-size: 48px;
+    margin-bottom: 15px;
+}
+
+.bbc-empty-text {
+    margin: 0;
+    color: #000;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+@media (max-width: 768px) {
+    .bbc-list-row {
+        flex-direction: column;
+    }
+
+    .bbc-list-thumb,
+    .bbc-list-thumb--placeholder {
+        width: 100%;
+        height: 180px;
+    }
+
+    .bbc-list-meta {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .bbc-view-btn {
+        width: 100%;
+        text-align: center;
+    }
+}
