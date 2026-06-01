@@ -212,7 +212,7 @@ class CertificateProfile
 
         // 4. Double check ownership: Only allow the owner (or administrators) to download
         $current_user_id = get_current_user_id();
-        if ((int) $cert->user_id !== $current_user_id && !current_user_can('manage_options')) {
+        if ((int) $cert->user_id !== $current_user_id || !current_user_can('manage_options')) {
             wp_die(__('You do not have permission to download this certificate.', 'buddyboss-certificates'), 403);
         }
 
