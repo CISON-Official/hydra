@@ -263,18 +263,6 @@ class CertificateProfile
 
     }
 
-    /**
-     * Helper to convert stored path/URL into an absolute system directory path.
-     */
-    private function get_absolute_private_path(string $stored_path): string
-    {
-
-        $upload_dir = wp_upload_dir();
-        $base_private_dir = $upload_dir['basedir'] . '/private-certificates/';
-
-        return $base_private_dir . basename($stored_path);
-    }
-
     public function enqueue_certificate_styles(): void
     {
         if (function_exists('bp_is_user') && bp_is_user()) {
@@ -298,7 +286,6 @@ class CertificateProfile
             return null;
         }
 
-        // CHANGED: get_results replaced with get_row
         return $wpdb->get_row(
             $wpdb->prepare(
                 "SELECT * FROM {$table} WHERE cert_key = %s AND cert_hmac = %s ORDER BY date_issued DESC LIMIT 1",
