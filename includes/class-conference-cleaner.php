@@ -12,14 +12,13 @@ final class ConferenceCleaner
     }
     function bulk_db_checker_admin_menu()
     {
-        add_menu_page(
-            'Bulk Purchase Sync',
-            'Bulk Sync',
+        add_submenu_page(
+            'tools.php',
+            __('Conference DB Sync', 'acmqr'),
+            __('Conference DB Sync', 'acmqr'),
             'manage_options',
-            'bulk-sync-page',
-            [$this, 'bulk_buyer_sync_page_html'],
-            'dashicons-groups',
-            90
+            'conference-db-sync',
+            [$this, 'bulk_buyer_sync_page_html']
         );
     }
 
