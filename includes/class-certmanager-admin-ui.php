@@ -58,7 +58,7 @@ class CertManager_Admin_UI
         $total_pages = (int) ceil($total_items / $per_page);
 
         $entries = $wpdb->get_results($wpdb->prepare(
-            "SELECT id, user_id, cert_name, user_email, date_issued
+            "SELECT id, user_id, cert_name, user_email, date_issued, file_url
 			 FROM {$this->registry_table}
 			 ORDER BY date_issued DESC
 			 LIMIT %d OFFSET %d",
