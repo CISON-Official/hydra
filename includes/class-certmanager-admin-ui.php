@@ -160,6 +160,7 @@ class CertManager_Admin_UI
                         <th><?php esc_html_e('Certificate Name', 'acmqr'); ?></th>
                         <th><?php esc_html_e('User Email', 'acmqr'); ?></th>
                         <th><?php esc_html_e('Date Issued', 'acmqr'); ?></th>
+                        <th><?php esc_html_e('Cert Path', 'acmqr'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -171,6 +172,7 @@ class CertManager_Admin_UI
                                 <td><?php echo esc_html($entry->cert_name); ?></td>
                                 <td><?php echo esc_html($entry->user_email); ?></td>
                                 <td><?php echo esc_html($entry->date_issued); ?></td>
+                                <td><?php echo esc_html($entry->file_url); ?></td>
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
