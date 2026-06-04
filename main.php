@@ -78,5 +78,5 @@ add_action('plugins_loaded', function () {
     new VerificationRouter();
     new CertManager_Admin_UI();
     new CertificateProfile();
-    new ConferenceCleaner();
+    // new ConferenceCleaner();
 });
