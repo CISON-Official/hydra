@@ -57,12 +57,13 @@ spl_autoload_register(function ($class) {
  * Explicitly require Activator before registering hooks.
  * register_activation_hook() fires before plugins_loaded, so the
  * autoloader may not have had a chance to run — require directly.
-*/
+ */
 require_once ACMQR_PLUGIN_PATH . 'includes/class-activator.php';
 require_once ACMQR_PLUGIN_PATH . 'includes/class-verification-router.php';
 require_once ACMQR_PLUGIN_PATH . 'includes/class-database-schema.php';
 require_once ACMQR_PLUGIN_PATH . 'includes/class-certmanager-admin-ui.php';
 require_once ACMQR_PLUGIN_PATH . 'includes/class-certificate-profile.php';
+require_once ACMQR_PLUGIN_PATH . 'include/class-conference-cleaner.php';
 
 
 register_activation_hook(__FILE__, ['\\Certificates\\Includes\\Activator', 'activate']);
@@ -71,9 +72,11 @@ register_deactivation_hook(__FILE__, ['\\Certificates\\Includes\\Activator', 'de
 use Certificates\Includes\VerificationRouter;
 use Certificates\Includes\CertificateProfile;
 use Certificates\Includes\CertManager_Admin_UI;
+use Certificates\Includes\ConferenceCleaner;
 
 add_action('plugins_loaded', function () {
     new VerificationRouter();
     new CertManager_Admin_UI();
     new CertificateProfile();
+    new ConferenceCleaner();
 });

@@ -1,5 +1,6 @@
 <?php
 
+namespace Certificates\Includes;
 final class ConferenceCleaner
 {
 
