@@ -47,7 +47,7 @@ class CertificateProfile
 
         return $wpdb->get_results(
             $wpdb->prepare(
-                "SELECT * FROM {$table} WHERE user_id = %d ORDER BY is_main, date_issued DESC",
+                "SELECT * FROM {$table} WHERE user_id = %d ORDER BY is_main DESC, date_issued DESC",
                 $user_id
             )
         ) ?: [];
