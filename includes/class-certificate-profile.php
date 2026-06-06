@@ -146,15 +146,16 @@ class CertificateProfile
                                         <?php echo esc_html($issued_label); ?>
                                     </span>
                                 </div>
-
-                                <div class="bbc-list-meta-item">
-                                    <span class="bbc-meta-label">
-                                        <?php esc_html_e('Expires', 'buddyboss-certificates'); ?>
-                                    </span>
-                                    <span class="bbc-meta-value <?php echo $is_expired ? 'bbc-text--expired' : ''; ?>">
-                                        <?php echo esc_html($expire_label); ?>
-                                    </span>
-                                </div>
+                                <?php if ($is_expired): ?>
+                                    <div class="bbc-list-meta-item">
+                                        <span class="bbc-meta-label">
+                                            <?php esc_html_e('Expires', 'buddyboss-certificates'); ?>
+                                        </span>
+                                        <span class="bbc-meta-value <?php echo $is_expired ? 'bbc-text--expired' : ''; ?>">
+                                            <?php echo esc_html($expire_label); ?>
+                                        </span>
+                                    </div>
+                                <?php endif; ?>
                             </div>
 
                             <?php if (!empty($path)):
