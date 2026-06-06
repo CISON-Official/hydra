@@ -146,7 +146,7 @@ class CertificateProfile
                                         <?php echo esc_html($issued_label); ?>
                                     </span>
                                 </div>
-                                <?php if (!empty($is_expired)): ?>
+                                <?php if (!empty($expire_at)): ?>
                                     <div class="bbc-list-meta-item">
                                         <span class="bbc-meta-label">
                                             <?php esc_html_e('Expires', 'buddyboss-certificates'); ?>
