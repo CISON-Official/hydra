@@ -11,7 +11,6 @@
     align-items: flex-start;
     background: #ffffff;
     border: 2px solid #e5e7eb;
-    border-left: 6px solid #16a34a;
     border-radius: 14px;
     padding: 20px;
     transition: all 0.25s ease;
@@ -94,12 +93,12 @@
 .bbc-list-meta {
     display: flex;
     flex-wrap: wrap;
-    gap: 25px;
+    gap: 10px;
 }
 
 .bbc-list-meta-item {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     gap: 4px;
 }
 
