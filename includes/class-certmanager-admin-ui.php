@@ -125,7 +125,7 @@ class CertManager_Admin_UI
             <!-- Action buttons -->
             <div style="display:flex;gap:10px;flex-wrap:wrap;margin:20px 0;">
 
-                <button id="btn-migrate" class="button button-primary" <?php disabled($pending_count + $total_items, 0); ?>>
+                <button id="btn-migrate" class="button button-primary" <?php disabled($pending_count, 0); ?>>
                     <?php esc_html_e('Copy to Registry', 'acmqr'); ?>
                 </button>
 
@@ -688,30 +688,6 @@ class CertManager_Admin_UI
         $logs[] = 'Starting migration...';
         $logs[] = "Source: {$source_table} → Target: {$target_table}";
 
-        // Repair signatures for rows that were copied before HMACs were derived
-        // from the certificate key. Without this, old QR links keep failing.
-        $existing_rows = $wpdb->get_results("SELECT id, cert_key, cert_hmac FROM {$target_table}") ?: [];
-        $repaired      = 0;
-
-        foreach ($existing_rows as $existing_row) {
-            $expected_hmac = CertificateHmac::generate((string) $existing_row->cert_key);
-
-            if (!hash_equals($expected_hmac, (string) $existing_row->cert_hmac)) {
-                $wpdb->update(
-                    $target_table,
-                    ['cert_hmac' => $expected_hmac],
-                    ['id' => (int) $existing_row->id],
-                    ['%s'],
-                    ['%d']
-                );
-                $repaired++;
-            }
-        }
-
-        if ($repaired > 0) {
-            $logs[] = "Repaired HMAC signatures for {$repaired} existing row(s).";
-        }
-
         $candidates = $wpdb->get_results(
             "SELECT
                 a.user_id,
@@ -779,7 +755,7 @@ class CertManager_Admin_UI
                     'user_email'  => $row->email,
                     'template_id' => $row->member_type ?: 'standard',
                     'cert_key'    => $row->cert_id,
-                    'cert_hmac'   => CertificateHmac::generate((string) $row->cert_id),
+                    'cert_hmac'   => $row->secret_token,
                     'is_main'     => 1,
                     'date_issued' => date('Y-m-d H:i:s', (int) $row->date_issued),
                     'date_expiry' => $date_expired_mysql,

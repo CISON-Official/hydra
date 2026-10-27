@@ -19,35 +19,6 @@ class Config
     }
 }
 
-class CertificateHmac
-{
-    /**
-     * Resolve the signing secret. A dedicated HMAC_SECRET_KEY (defined in
-     * wp-config.php) wins; otherwise fall back to WordPress auth salts.
-     */
-    public static function secret(): string
-    {
-        foreach (['HMAC_SECRET_KEY', 'SECURE_AUTH_KEY', 'AUTH_KEY'] as $key) {
-            $value = Config::get($key, '');
-            if (is_string($value) && $value !== '') {
-                return $value;
-            }
-        }
-
-        return function_exists('wp_salt') ? (string) wp_salt('auth') : '';
-    }
-
-    public static function generate(string $cert_key): string
-    {
-        return hash_hmac('sha256', $cert_key, self::secret());
-    }
-
-    public static function verify(string $cert_key, string $hmac): bool
-    {
-        return $hmac !== '' && hash_equals(self::generate($cert_key), $hmac);
-    }
-}
-
 
 class VerificationRouter
 {
@@ -121,7 +92,12 @@ class VerificationRouter
     }
 
     /**
-     * Validate HMAC and retrieve record.
+     * Validate the signature and retrieve the record.
+     *
+     * The certificate file (and its QR code) is produced by the REST API with
+     * the signature embedded in it. The registry row stores that exact value,
+     * so verification must compare against the stored signature rather than
+     * recomputing a new one.
      *
      * @return object|false Registry row or false.
      */
@@ -135,8 +111,9 @@ class VerificationRouter
             return false;
         }
 
-        // Constant-time HMAC comparison using the shared signing secret.
-        if (!CertificateHmac::verify($key, $hmac)) {
+        $stored_hmac = isset($record->cert_hmac) ? (string) $record->cert_hmac : '';
+
+        if ($stored_hmac === '' || $hmac === '' || !hash_equals($stored_hmac, $hmac)) {
             return false;
         }
 
