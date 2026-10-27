@@ -19,6 +19,35 @@ class Config
     }
 }
 
+class CertificateHmac
+{
+    /**
+     * Resolve the signing secret. A dedicated HMAC_SECRET_KEY (defined in
+     * wp-config.php) wins; otherwise fall back to WordPress auth salts.
+     */
+    public static function secret(): string
+    {
+        foreach (['HMAC_SECRET_KEY', 'SECURE_AUTH_KEY', 'AUTH_KEY'] as $key) {
+            $value = Config::get($key, '');
+            if (is_string($value) && $value !== '') {
+                return $value;
+            }
+        }
+
+        return function_exists('wp_salt') ? (string) wp_salt('auth') : '';
+    }
+
+    public static function generate(string $cert_key): string
+    {
+        return hash_hmac('sha256', $cert_key, self::secret());
+    }
+
+    public static function verify(string $cert_key, string $hmac): bool
+    {
+        return $hmac !== '' && hash_equals(self::generate($cert_key), $hmac);
+    }
+}
+
 
 class VerificationRouter
 {
@@ -106,10 +135,8 @@ class VerificationRouter
             return false;
         }
 
-        $secure_auth = Config::get('SSSECURE_AUTH_KEY', '');
-        // Constant-time HMAC comparison using WordPress native key
-        $expected_hmac = hash_hmac('sha256', $key, $secure_auth);
-        if (!hash_equals($expected_hmac, $hmac)) {
+        // Constant-time HMAC comparison using the shared signing secret.
+        if (!CertificateHmac::verify($key, $hmac)) {
             return false;
         }
 

@@ -21,6 +21,23 @@ define('ACMQR_PLUGIN_PATH', plugin_dir_path(__FILE__));
 define('ACMQR_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('ACMQR_QR_LIBRARY', ACMQR_PLUGIN_PATH . 'vendor/phpqrcode/qrlib.php');
 
+global $wpdb;
+
+// The legacy CISON table used a hard-coded prefix. Prefer the current site's
+// prefix, but fall back to the legacy name when that is the table that exists.
+if (!defined('CISON_CERT_TABLE')) {
+    $cison_cert_table = $wpdb->prefix . 'cison_certificates';
+
+    if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $cison_cert_table)) !== $cison_cert_table) {
+        $legacy_cert_table = 'wprx_cison_certificates';
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $legacy_cert_table)) === $legacy_cert_table) {
+            $cison_cert_table = $legacy_cert_table;
+        }
+    }
+
+    define('CISON_CERT_TABLE', $cison_cert_table);
+}
+
 /**
  * Autoloader — handles both root and sub-namespaces under Certificates\
  */
@@ -37,16 +54,18 @@ spl_autoload_register(function ($class) {
     $relative_class = substr($class, $len);
 
     // Certificates\Includes\Activator → includes/class-activator.php
-    // Strip the sub-namespace segment (Includes\) and use only the class name
     $parts = explode('\\', $relative_class);
     $class_name = array_pop($parts);                          // e.g. "Activator"
-    $sub_path = count($parts)
-        ? strtolower(implode('/', $parts)) . '/'              // e.g. "includes/"  (already base, so optional)
-        : '';
-
-    $file = $base_dir . $sub_path . 'class-' . strtolower(
+    $kebab_name = strtolower(
         preg_replace('/(?<!^)[A-Z]/', '-$0', $class_name)    // PascalCase → kebab-case
-    ) . '.php';
+    );
+
+    $file = $base_dir . 'class-' . $kebab_name . '.php';
+
+    // Fallback for any classes that may live in a nested namespace directory.
+    if (!file_exists($file) && count($parts)) {
+        $file = $base_dir . strtolower(implode('/', $parts)) . '/class-' . $kebab_name . '.php';
+    }
 
     if (file_exists($file)) {
         require $file;
@@ -63,7 +82,7 @@ require_once ACMQR_PLUGIN_PATH . 'includes/class-verification-router.php';
 require_once ACMQR_PLUGIN_PATH . 'includes/class-database-schema.php';
 require_once ACMQR_PLUGIN_PATH . 'includes/class-certmanager-admin-ui.php';
 require_once ACMQR_PLUGIN_PATH . 'includes/class-certificate-profile.php';
-// require_once ACMQR_PLUGIN_PATH . 'include/class-conference-cleaner.php';
+// require_once ACMQR_PLUGIN_PATH . 'includes/class-conference-cleaner.php';
 
 
 register_activation_hook(__FILE__, ['\\Certificates\\Includes\\Activator', 'activate']);

@@ -15,14 +15,9 @@ class Activator
 
     public static function deactivate(): void
     {
+        // Never destroy certificate data on deactivation. Data removal should be
+        // an explicit administrator action, not a side effect of disabling a plugin.
         flush_rewrite_rules();
-        self::clean_tables();
-    }
-    static public function clean_tables()
-    {
-        global $wpdb;
-        $registry_clean = DatabaseSchema::drop_registry_table($wpdb);
-        $wpdb->query($registry_clean);
     }
     private static function create_tables(): void
     {
@@ -48,7 +43,7 @@ class Activator
             $wpdb->insert($table_name, [
                 'title' => 'Classic Institutional Certificate',
                 'cert_type' => 'default-classic',
-                'template_path' => 'templates/classic.php',
+                'template_path' => 'templates/default-classic.php',
                 'duration_days' => 365,
                 'created_at' => current_time('mysql'),
             ]);
@@ -61,7 +56,7 @@ class Activator
             $wpdb->insert($table_name, [
                 'title' => 'Modern Minimalist Award',
                 'cert_type' => 'modern-minimal',
-                'template_path' => 'templates/modern.php',
+                'template_path' => 'templates/modern-minimal.php',
                 'duration_days' => null,
                 'created_at' => current_time('mysql'),
             ]);

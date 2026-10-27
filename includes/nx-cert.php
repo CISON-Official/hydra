@@ -18,7 +18,9 @@ define('CISON_CURRENT_YEAR', (int) date('Y'));
 define('CISON_PRIVATE_DIR', WP_CONTENT_DIR . '/private/');
 define('CISON_CERTIFICATE_DIR', CISON_PRIVATE_DIR . 'certificates/');
 define('CISON_CERTIFICATE_URL', content_url('/private/certificates/'));
-define('CISON_CERT_TABLE', 'wprx_cison_certificates');
+if (!defined('CISON_CERT_TABLE')) {
+    define('CISON_CERT_TABLE', 'wprx_cison_certificates');
+}
 
 /* ---------------------------
  * Enqueue assets
@@ -657,12 +659,27 @@ function cison_preview_user_eligibility($user_id) {
 
 function cison_get_next_cert_number() {
     global $wpdb;
-    $count = (int) $wpdb->get_var("SELECT COUNT(*) FROM " . CISON_CERT_TABLE);
+    $table = CISON_CERT_TABLE;
+    $year  = CISON_CURRENT_YEAR;
+
+    $last_cert_id = $wpdb->get_var($wpdb->prepare(
+        "SELECT cert_id FROM {$table} WHERE cert_id LIKE %s ORDER BY cert_id DESC LIMIT 1",
+        $wpdb->esc_like($year . '-') . '%'
+    ));
+
     if ($wpdb->last_error) {
-        error_log("CISON: Error counting certificates: " . $wpdb->last_error);
+        error_log("CISON: Error reading last certificate number: " . $wpdb->last_error);
         return 1;
     }
-    return $count + 1;
+
+    if (!$last_cert_id) {
+        return 1;
+    }
+
+    $separator = strrpos($last_cert_id, '-');
+    $last_number = $separator === false ? 0 : (int) substr($last_cert_id, $separator + 1);
+
+    return $last_number + 1;
 }
 
 /**
@@ -870,10 +887,11 @@ function cison_certificate_query_vars($vars) {
 
 add_action('template_redirect', 'cison_handle_certificate_request');
 function cison_handle_certificate_request() {
-    // Fire either when our query var is set OR when URL path contains "/certificate"
+    // Fire either when our query var is set OR when URL path is exactly "/certificate"
     $has_query_var   = (bool) get_query_var('cison_certificate');
     $request_uri     = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '';
-    $looks_like_cert = (strpos($request_uri, '/certificate') !== false);
+    $request_path    = untrailingslashit((string) wp_parse_url($request_uri, PHP_URL_PATH));
+    $looks_like_cert = ($request_path === '/certificate');
 
     if (!$has_query_var && !$looks_like_cert) {
         return;

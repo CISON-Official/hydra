@@ -91,7 +91,8 @@ class CertificateProfile
                 <?php foreach ($certificates as $cert):
 
                     $path = $cert->file_url ?? '';
-
+                    $local_path = $this->resolve_certificate_path($path);
+                    $preview_url = $this->path_to_url($path);
 
                     $name = $cert->cert_name;
                     $created_at = $cert->date_issued ?? '';
@@ -107,17 +108,16 @@ class CertificateProfile
                         ? date_i18n(get_option('date_format'), strtotime($expire_at))
                         : __('No expiry', 'buddyboss-certificates');
 
-                    $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+                    $ext = strtolower(pathinfo((string) wp_parse_url($path, PHP_URL_PATH), PATHINFO_EXTENSION));
                     $is_image = in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'], true);
-                    $current_user_id = get_current_user_id();
                     ?>
 
                     <li class="bbc-list-row <?php echo $is_expired ? 'bbc-list-row--expired' : ''; ?>"
                         style="list-style: none;padding-left: 0;margin: 0;">
 
                         <div class="bbc-list-preview">
-                            <?php if ($is_image && !empty($path)): ?>
-                                <img src="<?php echo esc_url($path); ?>" alt="<?php echo esc_attr($name); ?>" class="bbc-list-thumb"
+                            <?php if ($is_image && $preview_url !== ''): ?>
+                                <img src="<?php echo esc_url($preview_url); ?>" alt="<?php echo esc_attr($name); ?>" class="bbc-list-thumb"
                                     loading="lazy" />
                             <?php else: ?>
                                 <div class="bbc-list-thumb bbc-list-thumb--placeholder" aria-hidden="true">
@@ -158,7 +158,7 @@ class CertificateProfile
                                 <?php endif; ?>
                             </div>
 
-                            <?php if (!empty($path)):
+                            <?php if ($local_path !== null):
                                 // Generate a secure download URL using WordPress AJAX
                                 $ajax_url = admin_url(
                                     'admin-ajax.php?action=bbc_download_certificate' .
@@ -211,9 +211,9 @@ class CertificateProfile
             wp_die(__('You do not have permission to download this certificate.', 'buddyboss-certificates'), 403);
         }
 
-        $file_path = $cert->file_url;
+        $file_path = $this->resolve_certificate_path((string) $cert->file_url);
 
-        if (empty($file_path) || !file_exists($file_path)) {
+        if ($file_path === null) {
             wp_die(__('The certificate file could not be found on the server.', 'buddyboss-certificates'), 404);
         }
 
@@ -275,6 +275,71 @@ class CertificateProfile
                 '1.0.2'
             );
         }
+    }
+
+    private function is_url(string $value): bool
+    {
+        return (bool) preg_match('#^https?://#i', $value);
+    }
+
+    /**
+     * Convert a stored path or URL into a readable local file path.
+     */
+    private function resolve_certificate_path(string $file_url): ?string
+    {
+        $file_url = trim($file_url);
+
+        if ($file_url === '') {
+            return null;
+        }
+
+        if (!$this->is_url($file_url)) {
+            return file_exists($file_url) ? $file_url : null;
+        }
+
+        $url_path = (string) wp_parse_url($file_url, PHP_URL_PATH);
+        if ($url_path === '') {
+            return null;
+        }
+
+        $content_path = rtrim((string) wp_parse_url(content_url(), PHP_URL_PATH), '/');
+        if ($content_path !== '' && strpos($url_path, $content_path . '/') === 0) {
+            $candidate = WP_CONTENT_DIR . substr($url_path, strlen($content_path));
+            if (file_exists($candidate)) {
+                return $candidate;
+            }
+        }
+
+        $site_path = rtrim((string) wp_parse_url(home_url('/'), PHP_URL_PATH), '/');
+        $relative = ($site_path !== '' && strpos($url_path, $site_path . '/') === 0)
+            ? substr($url_path, strlen($site_path))
+            : $url_path;
+
+        $candidate = ABSPATH . ltrim($relative, '/');
+        return file_exists($candidate) ? $candidate : null;
+    }
+
+    /**
+     * Convert a local path inside wp-content into a public URL for previews.
+     */
+    private function path_to_url(string $path): string
+    {
+        if ($path === '') {
+            return '';
+        }
+
+        if ($this->is_url($path)) {
+            return $path;
+        }
+
+        $normalized_path = wp_normalize_path($path);
+        $content_dir = wp_normalize_path(WP_CONTENT_DIR);
+
+        if (strpos($normalized_path, $content_dir) === 0) {
+            return content_url(substr($normalized_path, strlen($content_dir)));
+        }
+
+        return '';
     }
 
     public function get_single_certificate(string $cert_key, string $cert_hmac)

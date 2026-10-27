@@ -97,7 +97,6 @@ final class ConferenceCleaner
         // 1. Fetch all distinct email addresses present in your custom table
         // Using a select query to pull only what is required to keep memory usage safe
         $db_users = $wpdb->get_results("SELECT DISTINCT `$email_column` FROM `$table_name` WHERE `$email_column` IS NOT NULL AND `$email_column` != ''");
-
         if (empty($db_users)) {
             wp_send_json_error(array('message' => 'No target entries or email addresses found inside the database table.'));
         }
@@ -127,17 +126,15 @@ final class ConferenceCleaner
                 }
             }
 
-            $has_purchased = array_all($purchased_field, fn($value) => $value === true);
+            $has_purchased = !empty($purchased_field) && !in_array(false, $purchased_field, true);
+
             if ($has_purchased) {
                 $updated = $wpdb->update(
                     $table_name,
-                    array(
-                       "id"=>$row->id,
-                       "payment_status"=>$row->payment_status,
-                    ),
-                    array($email_column => $email), 
-                    array('%d', '%s'),
-                    array('%s')
+                    ['payment_status' => 'paid'],
+                    [$email_column => $email],
+                    ['%s'],
+                    ['%s']
                 );
 
                 if ($updated !== false && $updated > 0) {

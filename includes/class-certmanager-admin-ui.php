@@ -36,8 +36,8 @@ class CertManager_Admin_UI
     {
         add_submenu_page(
             'tools.php',
-            __('Issue Certificate', 'acmqr'),
-            __('Issue Certificate', 'acmqr'),
+            __('Certificate Registry', 'acmqr'),
+            __('Certificate Registry', 'acmqr'),
             'manage_options',
             'acmqr-issue-cert',
             [$this, 'render_admin_page']
@@ -290,10 +290,10 @@ class CertManager_Admin_UI
                     </tr>
                     <tr>
                         <th style="padding:8px 10px 8px 0;">
-                            <label for="modal-file-url"><?php esc_html_e('File URL', 'acmqr'); ?></label>
+                            <label for="modal-file-url"><?php esc_html_e('File Path / URL', 'acmqr'); ?></label>
                         </th>
                         <td style="padding:6px 0;">
-                            <input type="url" id="modal-file-url" class="regular-text" style="width:100%;">
+                            <input type="text" id="modal-file-url" class="regular-text" style="width:100%;">
                         </td>
                     </tr>
                 </table>
@@ -643,7 +643,8 @@ class CertManager_Admin_UI
         }
 
         if (isset($_POST['file_url'])) {
-            $update_data['file_url'] = esc_url_raw($_POST['file_url']);
+            $file_url = sanitize_text_field(wp_unslash($_POST['file_url']));
+            $update_data['file_url'] = $file_url !== '' ? $file_url : null;
             $update_format[]         = '%s';
         }
 
@@ -686,6 +687,30 @@ class CertManager_Admin_UI
 
         $logs[] = 'Starting migration...';
         $logs[] = "Source: {$source_table} → Target: {$target_table}";
+
+        // Repair signatures for rows that were copied before HMACs were derived
+        // from the certificate key. Without this, old QR links keep failing.
+        $existing_rows = $wpdb->get_results("SELECT id, cert_key, cert_hmac FROM {$target_table}") ?: [];
+        $repaired      = 0;
+
+        foreach ($existing_rows as $existing_row) {
+            $expected_hmac = CertificateHmac::generate((string) $existing_row->cert_key);
+
+            if (!hash_equals($expected_hmac, (string) $existing_row->cert_hmac)) {
+                $wpdb->update(
+                    $target_table,
+                    ['cert_hmac' => $expected_hmac],
+                    ['id' => (int) $existing_row->id],
+                    ['%s'],
+                    ['%d']
+                );
+                $repaired++;
+            }
+        }
+
+        if ($repaired > 0) {
+            $logs[] = "Repaired HMAC signatures for {$repaired} existing row(s).";
+        }
 
         $candidates = $wpdb->get_results(
             "SELECT
@@ -754,7 +779,7 @@ class CertManager_Admin_UI
                     'user_email'  => $row->email,
                     'template_id' => $row->member_type ?: 'standard',
                     'cert_key'    => $row->cert_id,
-                    'cert_hmac'   => $row->secret_token,
+                    'cert_hmac'   => CertificateHmac::generate((string) $row->cert_id),
                     'is_main'     => 1,
                     'date_issued' => date('Y-m-d H:i:s', (int) $row->date_issued),
                     'date_expiry' => $date_expired_mysql,
