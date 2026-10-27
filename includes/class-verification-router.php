@@ -129,7 +129,7 @@ class VerificationRouter
         ?>
         <div class="certificate-verification-badge"
             style="border: 1px solid #ccc; padding: 20px; text-align: center; border-radius: 5px;">
-            <h1><?php esc_html_e($certificate->cert_name, 'text-domain'); ?> Certificate</h1>
+            <h1><?php esc_html_e($certificate->cert_name, 'text-domain'); ?> </h1>
             <h2><?php esc_html_e('Certificate Verified', 'text-domain'); ?></h2>
             <p>
                 <strong><?php esc_html_e('Holder Name:', 'text-domain'); ?></strong>
