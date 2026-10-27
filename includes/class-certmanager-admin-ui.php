@@ -125,7 +125,7 @@ class CertManager_Admin_UI
             <!-- Action buttons -->
             <div style="display:flex;gap:10px;flex-wrap:wrap;margin:20px 0;">
 
-                <button id="btn-migrate" class="button button-primary" <?php disabled($pending_count, 0); ?>>
+                <button id="btn-migrate" class="button button-primary" <?php disabled($pending_count + $total_items, 0); ?>>
                     <?php esc_html_e('Copy to Registry', 'acmqr'); ?>
                 </button>
 
