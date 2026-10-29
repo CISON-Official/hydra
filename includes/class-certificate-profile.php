@@ -95,85 +95,54 @@ class CertificateProfile
                     $preview_url = $this->path_to_url($path);
 
                     $name = $cert->cert_name;
-                    $created_at = $cert->date_issued ?? '';
-                    $expire_at = $cert->date_expiry ?? '';
-
-                    $is_expired = !empty($expire_at) && strtotime($expire_at) < time();
-
-                    $issued_label = !empty($created_at)
-                        ? date_i18n(get_option('date_format'), strtotime($created_at))
-                        : __('Unknown', 'buddyboss-certificates');
-
-                    $expire_label = !empty($expire_at)
-                        ? date_i18n(get_option('date_format'), strtotime($expire_at))
-                        : __('No expiry', 'buddyboss-certificates');
 
                     $ext = strtolower(pathinfo((string) wp_parse_url($path, PHP_URL_PATH), PATHINFO_EXTENSION));
                     $is_image = in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'], true);
+
+                    $certificate_url = '';
+                    if ($local_path !== null || $this->is_url($path)) {
+                        if ($this->is_url($path)) {
+                            $certificate_url = $path;
+                        } else {
+                            $ajax_url = admin_url(
+                                'admin-ajax.php?action=bbc_download_certificate' .
+                                '&cert_key=' . urlencode($cert->cert_key) .
+                                '&cert_hmac=' . urlencode($cert->cert_hmac)
+                            );
+                            $certificate_url = wp_nonce_url($ajax_url, 'bbc_download_cert_' . $cert->cert_key);
+                        }
+                    }
                     ?>
 
-                    <li class="bbc-list-row <?php echo $is_expired ? 'bbc-list-row--expired' : ''; ?>"
-                        style="list-style: none;padding-left: 0;margin: 0;">
+                    <li class="bbc-list-row" style="list-style: none;padding-left: 0;margin: 0;">
+                        <?php if ($certificate_url !== ''): ?>
+                            <a href="<?php echo esc_url($certificate_url); ?>" class="bbc-list-row-link" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:16px;padding:12px 16px;text-decoration:none;color:inherit;">
+                        <?php else: ?>
+                            <div class="bbc-list-row-link" style="display:flex;align-items:center;gap:16px;padding:12px 16px;">
+                        <?php endif; ?>
 
-                        <div class="bbc-list-preview">
-                            <?php if ($is_image && $preview_url !== ''): ?>
-                                <img src="<?php echo esc_url($preview_url); ?>" alt="<?php echo esc_attr($name); ?>" class="bbc-list-thumb"
-                                    loading="lazy" />
-                            <?php else: ?>
-                                <div class="bbc-list-thumb bbc-list-thumb--placeholder" aria-hidden="true">
-                                    <span class="bbc-list-thumb-icon">📄</span>
-                                </div>
-                            <?php endif; ?>
-
-                            <span class="bbc-badge <?php echo $is_expired ? 'bbc-badge--expired' : 'bbc-badge--active'; ?>">
-                                <?php echo $is_expired
-                                    ? esc_html__('Expired', 'buddyboss-certificates')
-                                    : esc_html__('Active', 'buddyboss-certificates'); ?>
-                            </span>
-                        </div>
-
-                        <div class="bbc-list-details">
-                            <h3 class="bbc-list-name">
-                                <?php echo esc_html($name); ?>
-                            </h3>
-
-                            <div class="bbc-list-meta">
-                                <div class="bbc-list-meta-item">
-                                    <span class="bbc-meta-label">
-                                        <?php esc_html_e('Issued', 'buddyboss-certificates'); ?>
-                                    </span>
-                                    <span class="bbc-meta-value">
-                                        <?php echo esc_html($issued_label); ?>
-                                    </span>
-                                </div>
-                                <?php if (!empty($expire_at)): ?>
-                                    <div class="bbc-list-meta-item">
-                                        <span class="bbc-meta-label">
-                                            <?php esc_html_e('Expires', 'buddyboss-certificates'); ?>
-                                        </span>
-                                        <span class="bbc-meta-value <?php echo $is_expired ? 'bbc-text--expired' : ''; ?>">
-                                            <?php echo esc_html($expire_label); ?>
-                                        </span>
+                            <div class="bbc-list-preview" style="flex:0 0 auto;">
+                                <?php if ($is_image && $preview_url !== ''): ?>
+                                    <img src="<?php echo esc_url($preview_url); ?>" alt="<?php echo esc_attr($name); ?>" class="bbc-list-thumb"
+                                        loading="lazy" style="width:60px;height:60px;object-fit:cover;border-radius:4px;" />
+                                <?php else: ?>
+                                    <div class="bbc-list-thumb bbc-list-thumb--placeholder" aria-hidden="true" style="width:60px;height:60px;display:flex;align-items:center;justify-content:center;background:#f0f0f0;border-radius:4px;">
+                                        <span class="bbc-list-thumb-icon">📄</span>
                                     </div>
                                 <?php endif; ?>
                             </div>
 
-                            <?php if ($local_path !== null):
-                                // Generate a secure download URL using WordPress AJAX
-                                $ajax_url = admin_url(
-                                    'admin-ajax.php?action=bbc_download_certificate' .
-                                    '&cert_key=' . urlencode($cert->cert_key) .
-                                    '&cert_hmac=' . urlencode($cert->cert_hmac)
-                                );
+                            <div class="bbc-list-details" style="flex:1;">
+                                <h3 class="bbc-list-name" style="margin:0;font-size:16px;font-weight:600;">
+                                    <?php echo esc_html($name); ?>
+                                </h3>
+                            </div>
 
-                                $download_url = wp_nonce_url($ajax_url, 'bbc_download_cert_' . $cert->cert_key);
-                                ?>
-                                <a href="<?php echo esc_url($download_url); ?>" class="bbc-view-btn">
-                                    <?php esc_html_e('Download Certificate', 'buddyboss-certificates'); ?>
-                                </a>
-                            <?php endif; ?>
-
-                        </div>
+                        <?php if ($certificate_url !== ''): ?>
+                            </a>
+                        <?php else: ?>
+                            </div>
+                        <?php endif; ?>
 
                     </li>
 
