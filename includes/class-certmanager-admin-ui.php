@@ -53,7 +53,11 @@ class CertManager_Admin_UI
     {
         global $wpdb;
 
-        $per_page = 20;
+        $per_page_options = [20, 50, 100, 200, 500, 1000, 2000, 5000];
+        $per_page = intval($_GET['per_page'] ?? 20);
+        if (!in_array($per_page, $per_page_options, true)) {
+            $per_page = 20;
+        }
         $current_page = max(1, intval($_GET['paged'] ?? 1));
         $offset = ($current_page - 1) * $per_page;
 
@@ -126,12 +130,18 @@ class CertManager_Admin_UI
         $bulk_delete_nonce  = wp_create_nonce('cison_bulk_delete_nonce');
 
         $pagination_args = [
-            'base'      => add_query_arg('paged', '%#%'),
+            'base'      => add_query_arg(array_merge([
+                'paged' => '%#%',
+                's' => $search,
+                'cert_name_filter' => $cert_filter,
+                'per_page' => $per_page,
+            ]), ''),
             'format'    => '',
             'prev_text' => __('&laquo; Previous'),
             'next_text' => __('Next &raquo;'),
             'total'     => $total_pages,
             'current'   => $current_page,
+            'add_args'  => false,
         ];
 
         ?>
@@ -182,6 +192,11 @@ class CertManager_Admin_UI
                             <option value=""><?php esc_html_e('All Certificate Names', 'acmqr'); ?></option>
                             <?php foreach ($cert_names as $cname): ?>
                                 <option value="<?php echo esc_attr($cname); ?>" <?php selected($cert_filter, $cname); ?>><?php echo esc_html($cname); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <select name="per_page">
+                            <?php foreach ($per_page_options as $option): ?>
+                                <option value="<?php echo esc_attr($option); ?>" <?php selected($per_page, $option); ?>><?php echo esc_html($option); ?> <?php esc_html_e('per page', 'acmqr'); ?></option>
                             <?php endforeach; ?>
                         </select>
                         <input type="search" name="s" id="cert-registry-search" value="<?php echo esc_attr($search); ?>" placeholder="<?php esc_attr_e('Search certificates, emails...', 'acmqr'); ?>" />
