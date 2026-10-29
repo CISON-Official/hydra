@@ -26,6 +26,7 @@ class CertManager_Admin_UI
         add_action('wp_ajax_cison_delete_registry', [$this, 'handle_delete_registry']);
         add_action('wp_ajax_cison_delete_entry', [$this, 'handle_delete_entry']);
         add_action('wp_ajax_cison_update_entry', [$this, 'handle_update_entry']);
+        add_action('wp_ajax_cison_bulk_delete_entries', [$this, 'handle_bulk_delete_entries']);
     }
 
     /* -------------------------------------------------------
@@ -56,17 +57,45 @@ class CertManager_Admin_UI
         $current_page = max(1, intval($_GET['paged'] ?? 1));
         $offset = ($current_page - 1) * $per_page;
 
-        $total_items = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$this->registry_table}");
+        $search = sanitize_text_field($_GET['s'] ?? '');
+        $cert_filter = sanitize_text_field($_GET['cert_name_filter'] ?? '');
+
+        $where = ['1=1'];
+        $prepare_args = [];
+
+        if ($search !== '') {
+            $where[] = '(cert_name LIKE %s OR user_email LIKE %s OR user_name LIKE %s OR file_url LIKE %s)';
+            $search_like = '%' . $wpdb->esc_like($search) . '%';
+            $prepare_args[] = $search_like;
+            $prepare_args[] = $search_like;
+            $prepare_args[] = $search_like;
+            $prepare_args[] = $search_like;
+        }
+
+        if ($cert_filter !== '') {
+            $where[] = 'cert_name = %s';
+            $prepare_args[] = $cert_filter;
+        }
+
+        $where_sql = implode(' AND ', $where);
+
+        $count_query = "SELECT COUNT(*) FROM {$this->registry_table} WHERE {$where_sql}";
+        if (!empty($prepare_args)) {
+            $count_query = $wpdb->prepare($count_query, $prepare_args);
+        }
+        $total_items = (int) $wpdb->get_var($count_query);
         $total_pages = (int) ceil($total_items / $per_page);
 
-        $entries = $wpdb->get_results($wpdb->prepare(
-            "SELECT id, user_id, cert_name, user_email, date_issued, date_expiry, file_url, is_main
+        $query = "SELECT id, user_id, cert_name, user_email, date_issued, date_expiry, file_url, is_main
              FROM {$this->registry_table}
+             WHERE {$where_sql}
              ORDER BY date_issued DESC
-             LIMIT %d OFFSET %d",
-            $per_page,
-            $offset
-        ));
+             LIMIT %d OFFSET %d";
+
+        $query_args = array_merge($prepare_args, [$per_page, $offset]);
+        $entries = $wpdb->get_results($wpdb->prepare($query, $query_args));
+
+        $cert_names = $wpdb->get_col("SELECT DISTINCT cert_name FROM {$this->registry_table} ORDER BY cert_name ASC");
 
         $source_table = CISON_CERT_TABLE;
         $pending_count = (int) $wpdb->get_var(
@@ -94,6 +123,7 @@ class CertManager_Admin_UI
         $delete_nonce       = wp_create_nonce('cison_delete_nonce');
         $delete_entry_nonce = wp_create_nonce('cison_delete_entry_nonce');
         $update_entry_nonce = wp_create_nonce('cison_update_entry_nonce');
+        $bulk_delete_nonce  = wp_create_nonce('cison_bulk_delete_nonce');
 
         $pagination_args = [
             'base'      => add_query_arg('paged', '%#%'),
@@ -144,12 +174,37 @@ class CertManager_Admin_UI
 
             <h2><?php esc_html_e('Certificate Registry Entries', 'acmqr'); ?></h2>
 
-            <div class="tablenav top">
-                <div class="tablenav-pages">
-                    <span class="displaying-num">
-                        <?php printf(esc_html(_n('%s item', '%s items', $total_items, 'acmqr')), number_format_i18n($total_items)); ?>
-                    </span>
-                    <?php echo paginate_links($pagination_args); ?>
+            <form method="get" action="">
+                <input type="hidden" name="page" value="acmqr-issue-cert" />
+                <div class="tablenav top">
+                    <div class="alignleft actions">
+                        <select name="cert_name_filter">
+                            <option value=""><?php esc_html_e('All Certificate Names', 'acmqr'); ?></option>
+                            <?php foreach ($cert_names as $cname): ?>
+                                <option value="<?php echo esc_attr($cname); ?>" <?php selected($cert_filter, $cname); ?>><?php echo esc_html($cname); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <input type="search" name="s" id="cert-registry-search" value="<?php echo esc_attr($search); ?>" placeholder="<?php esc_attr_e('Search certificates, emails...', 'acmqr'); ?>" />
+                        <?php submit_button(__('Filter', 'acmqr'), 'secondary', 'filter_action', false, ['id' => 'post-query-submit']); ?>
+                    </div>
+                    <div class="tablenav-pages">
+                        <span class="displaying-num">
+                            <?php printf(esc_html(_n('%s item', '%s items', $total_items, 'acmqr')), number_format_i18n($total_items)); ?>
+                        </span>
+                        <?php echo paginate_links($pagination_args); ?>
+                    </div>
+                    <br class="clear">
+                </div>
+            </form>
+
+            <div class="tablenav top" style="margin-top:10px;">
+                <div class="alignleft actions bulkactions">
+                    <label for="bulk-action-selector-top" class="screen-reader-text"><?php esc_html_e('Select bulk action', 'acmqr'); ?></label>
+                    <select name="action" id="bulk-action-selector-top">
+                        <option value="-1"><?php esc_html_e('Bulk Actions', 'acmqr'); ?></option>
+                        <option value="delete"><?php esc_html_e('Delete', 'acmqr'); ?></option>
+                    </select>
+                    <input type="button" id="doaction" class="button action" value="<?php esc_attr_e('Apply', 'acmqr'); ?>">
                 </div>
                 <br class="clear">
             </div>
@@ -157,6 +212,7 @@ class CertManager_Admin_UI
             <table class="wp-list-table widefat fixed striped posts">
                 <thead>
                     <tr>
+                        <td id="cb" class="manage-column column-cb check-column"><input id="cb-select-all-1" type="checkbox"></td>
                         <th style="width:60px;"><?php esc_html_e('ID', 'acmqr'); ?></th>
                         <th><?php esc_html_e('User ID', 'acmqr'); ?></th>
                         <th><?php esc_html_e('Certificate Name', 'acmqr'); ?></th>
@@ -170,6 +226,7 @@ class CertManager_Admin_UI
                     <?php if (!empty($entries)): ?>
                         <?php foreach ($entries as $entry): ?>
                             <tr id="cert-row-<?php echo esc_attr($entry->id); ?>">
+                                <th scope="row" class="check-column"><input type="checkbox" class="cert-bulk-checkbox" name="cert_ids[]" value="<?php echo esc_attr($entry->id); ?>"></th>
                                 <td><strong>#<?php echo esc_html($entry->id); ?></strong></td>
                                 <td><?php echo esc_html($entry->user_id ?: 'N/A'); ?></td>
                                 <td><?php echo esc_html($entry->cert_name); ?></td>
@@ -204,7 +261,7 @@ class CertManager_Admin_UI
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr id="no-entries-row">
-                            <td colspan="7"><?php esc_html_e('No registry records found.', 'acmqr'); ?></td>
+                            <td colspan="8"><?php esc_html_e('No registry records found.', 'acmqr'); ?></td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
@@ -428,7 +485,7 @@ class CertManager_Admin_UI
                             $(this).remove();
                             if ($('#cert-registry-tbody tr:visible').length === 0) {
                                 $('#cert-registry-tbody').append(
-                                    '<tr id="no-entries-row"><td colspan="7"><?php echo esc_js(__('No registry records found.', 'acmqr')); ?></td></tr>'
+                                    '<tr id="no-entries-row"><td colspan="8"><?php echo esc_js(__('No registry records found.', 'acmqr')); ?></td></tr>'
                                 );
                             }
                         });
@@ -540,6 +597,58 @@ class CertManager_Admin_UI
                 });
             });
 
+            /* ============================================================
+             * Bulk actions
+             * ============================================================ */
+
+            $('#cb-select-all-1').on('change', function () {
+                $('.cert-bulk-checkbox').prop('checked', $(this).prop('checked'));
+            });
+
+            $('#doaction').on('click', function (e) {
+                e.preventDefault();
+                const action = $('#bulk-action-selector-top').val();
+                if (action === '-1') {
+                    return;
+                }
+                if (action === 'delete') {
+                    const selected = $('.cert-bulk-checkbox:checked').map(function () {
+                        return $(this).val();
+                    }).get();
+                    if (selected.length === 0) {
+                        alert('<?php echo esc_js(__('Please select at least one entry to delete.', 'acmqr')); ?>');
+                        return;
+                    }
+                    if (!window.confirm('<?php echo esc_js(__('Are you sure you want to delete', 'acmqr')); ?> ' + selected.length + ' <?php echo esc_js(__('selected entries? This cannot be undone.', 'acmqr')); ?>')) {
+                        return;
+                    }
+                    $(this).prop('disabled', true);
+                    setState('pending', '<?php echo esc_js(__('Deleting selected entries...', 'acmqr')); ?>');
+                    $.post(ajaxurl, {
+                        action: 'cison_bulk_delete_entries',
+                        nonce: '<?php echo esc_js($bulk_delete_nonce); ?>',
+                        ids: selected
+                    }).done(function (response) {
+                        if (response.success) {
+                            $.each(selected, function (i, id) {
+                                $('#cert-row-' + id).fadeOut(300, function () { $(this).remove(); });
+                            });
+                            setState('success', response.data.message);
+                            $('#cb-select-all-1').prop('checked', false);
+                            if ($('#cert-registry-tbody tr:visible').length === 0) {
+                                $('#cert-registry-tbody').append('<tr id="no-entries-row"><td colspan="8"><?php echo esc_js(__('No registry records found.', 'acmqr')); ?></td></tr>');
+                            }
+                        } else {
+                            setState('error', response.data.message ?? '<?php echo esc_js(__('Bulk delete failed.', 'acmqr')); ?>');
+                        }
+                    }).fail(function () {
+                        setState('error', '<?php echo esc_js(__('Request failed. Please try again.', 'acmqr')); ?>');
+                    }).always(function () {
+                        $('#doaction').prop('disabled', false);
+                    });
+                }
+            });
+
         });
         </script>
         <?php
@@ -559,6 +668,49 @@ class CertManager_Admin_UI
                 'logs'    => ['Security block: insufficient permissions.'],
             ]);
         }
+    }
+
+    /* -------------------------------------------------------
+     * AJAX: bulk delete entries by IDs
+     * ----------------------------------------------------- */
+
+    public function handle_bulk_delete_entries(): void
+    {
+        $this->verify_ajax('cison_bulk_delete_nonce', 'nonce');
+
+        global $wpdb;
+
+        $ids = $_POST['ids'] ?? [];
+        if (empty($ids) || !is_array($ids)) {
+            wp_send_json_error(['message' => __('No entries selected.', 'acmqr')]);
+        }
+
+        $ids = array_map('intval', $ids);
+        $ids = array_filter($ids, function ($id) {
+            return $id > 0;
+        });
+
+        if (empty($ids)) {
+            wp_send_json_error(['message' => __('Invalid entry IDs.', 'acmqr')]);
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+        $query = "DELETE FROM {$this->registry_table} WHERE id IN ($placeholders)";
+        $deleted = $wpdb->query($wpdb->prepare($query, $ids));
+
+        if ($deleted === false) {
+            wp_send_json_error([
+                'message' => __('Bulk delete failed.', 'acmqr'),
+            ]);
+        }
+
+        wp_send_json_success([
+            'message' => sprintf(
+                __('%d entr%s deleted successfully.', 'acmqr'),
+                $deleted,
+                $deleted === 1 ? 'y' : 'ies'
+            ),
+        ]);
     }
 
     /* -------------------------------------------------------
