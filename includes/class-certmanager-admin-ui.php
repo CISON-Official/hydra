@@ -27,6 +27,7 @@ class CertManager_Admin_UI
         add_action('wp_ajax_cison_delete_entry', [$this, 'handle_delete_entry']);
         add_action('wp_ajax_cison_update_entry', [$this, 'handle_update_entry']);
         add_action('wp_ajax_cison_bulk_delete_entries', [$this, 'handle_bulk_delete_entries']);
+        add_action('wp_ajax_cison_rename_cert_group', [$this, 'handle_rename_cert_group']);
     }
 
     /* -------------------------------------------------------
@@ -128,6 +129,7 @@ class CertManager_Admin_UI
         $delete_entry_nonce = wp_create_nonce('cison_delete_entry_nonce');
         $update_entry_nonce = wp_create_nonce('cison_update_entry_nonce');
         $bulk_delete_nonce  = wp_create_nonce('cison_bulk_delete_nonce');
+        $rename_group_nonce = wp_create_nonce('cison_rename_group_nonce');
 
         $pagination_args = [
             'base'      => add_query_arg(array_merge([
@@ -175,6 +177,10 @@ class CertManager_Admin_UI
 
                 <button id="btn-delete" class="button" style="border-color:#d63638;color:#d63638;background:#fff0f0;" <?php disabled($total_items, 0); ?>>
                     <?php esc_html_e('Delete All Registry Entries', 'acmqr'); ?>
+                </button>
+
+                <button id="btn-rename-group" class="button" <?php disabled(empty($cert_names)); ?>>
+                    <?php esc_html_e('Rename Certificate Group', 'acmqr'); ?>
                 </button>
 
             </div>
@@ -389,6 +395,84 @@ class CertManager_Admin_UI
             </div>
         </div>
         <!-- /Edit Modal -->
+
+        <!-- ============================================================
+             Rename Certificate Group Modal
+             ============================================================ -->
+        <div id="cison-rename-modal" style="
+            display:none;
+            position:fixed;
+            inset:0;
+            z-index:100000;
+            background:rgba(0,0,0,.55);
+            align-items:center;
+            justify-content:center;
+        ">
+            <div style="
+                background:#fff;
+                border-radius:6px;
+                box-shadow:0 8px 32px rgba(0,0,0,.25);
+                padding:28px 32px;
+                width:480px;
+                max-width:94vw;
+                position:relative;
+            ">
+                <button id="cison-rename-modal-close" style="
+                    position:absolute;top:12px;right:14px;
+                    background:none;border:none;font-size:22px;
+                    cursor:pointer;color:#666;line-height:1;
+                " aria-label="<?php esc_attr_e('Close', 'acmqr'); ?>">&times;</button>
+
+                <h2 style="margin-top:0;margin-bottom:20px;font-size:17px;">
+                    <?php esc_html_e('Rename Certificate Group', 'acmqr'); ?>
+                </h2>
+
+                <p style="margin-top:0;color:#666;font-size:13px;">
+                    <?php esc_html_e('This renames the group for every certificate entry that currently uses it.', 'acmqr'); ?>
+                </p>
+
+                <table class="form-table" style="margin:0;">
+                    <tr>
+                        <th style="padding:8px 10px 8px 0;width:130px;">
+                            <label for="rename-old-name"><?php esc_html_e('Current Group', 'acmqr'); ?></label>
+                        </th>
+                        <td style="padding:6px 0;">
+                            <select id="rename-old-name" style="width:100%;">
+                                <?php foreach ($cert_names as $cname): ?>
+                                    <option value="<?php echo esc_attr($cname); ?>"><?php echo esc_html($cname); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th style="padding:8px 10px 8px 0;">
+                            <label for="rename-new-name"><?php esc_html_e('New Name', 'acmqr'); ?></label>
+                        </th>
+                        <td style="padding:6px 0;">
+                            <input type="text" id="rename-new-name" class="regular-text" style="width:100%;">
+                        </td>
+                    </tr>
+                </table>
+
+                <div id="rename-status" style="
+                    display:none;
+                    margin-top:14px;
+                    padding:8px 12px;
+                    border-left:4px solid transparent;
+                    font-size:13px;
+                "></div>
+
+                <div style="margin-top:20px;display:flex;gap:10px;justify-content:flex-end;">
+                    <button id="cison-rename-modal-cancel" class="button">
+                        <?php esc_html_e('Cancel', 'acmqr'); ?>
+                    </button>
+                    <button id="cison-rename-modal-save" class="button button-primary">
+                        <?php esc_html_e('Rename Group', 'acmqr'); ?>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- /Rename Group Modal -->
 
         <script>
         jQuery(function ($) {
@@ -609,6 +693,78 @@ class CertManager_Admin_UI
                 })
                 .always(function () {
                     saveBtn.prop('disabled', false).text('<?php echo esc_js(__('Save Changes', 'acmqr')); ?>');
+                });
+            });
+
+            /* ============================================================
+             * Rename certificate group
+             * ============================================================ */
+
+            const renameModal  = $('#cison-rename-modal');
+            const renameStatus = $('#rename-status');
+
+            function closeRenameModal() {
+                renameModal.hide();
+            }
+
+            $('#btn-rename-group').on('click', function () {
+                const current = '<?php echo esc_js($cert_filter); ?>';
+                if (current) {
+                    $('#rename-old-name').val(current);
+                }
+                $('#rename-new-name').val('');
+                renameStatus.hide().text('');
+                renameModal.css('display', 'flex');
+            });
+
+            $('#cison-rename-modal-close, #cison-rename-modal-cancel').on('click', closeRenameModal);
+
+            renameModal.on('click', function (e) {
+                if ($(e.target).is(renameModal)) closeRenameModal();
+            });
+
+            $('#cison-rename-modal-save').on('click', function () {
+                const saveBtn = $(this);
+                const oldName = $('#rename-old-name').val();
+                const newName = $('#rename-new-name').val().trim();
+
+                if (!newName) {
+                    renameStatus
+                        .css({ color: 'red', background: '#fbeae5', borderColor: '#dc3232', display: 'block' })
+                        .text('<?php echo esc_js(__('Please enter a new group name.', 'acmqr')); ?>');
+                    return;
+                }
+
+                saveBtn.prop('disabled', true).text('<?php echo esc_js(__('Renaming…', 'acmqr')); ?>');
+                renameStatus.hide().text('');
+
+                $.post(ajaxurl, {
+                    action:   'cison_rename_cert_group',
+                    nonce:    '<?php echo esc_js($rename_group_nonce); ?>',
+                    old_name: oldName,
+                    new_name: newName,
+                })
+                .done(function (response) {
+                    if (response.success) {
+                        renameStatus
+                            .css({ color: 'green', background: '#ecf7ed', borderColor: '#46b450', display: 'block' })
+                            .text(response.data.message);
+                        window.setTimeout(function () {
+                            window.location.reload();
+                        }, 800);
+                    } else {
+                        renameStatus
+                            .css({ color: 'red', background: '#fbeae5', borderColor: '#dc3232', display: 'block' })
+                            .text(response.data.message ?? '<?php echo esc_js(__('Rename failed.', 'acmqr')); ?>');
+                    }
+                })
+                .fail(function () {
+                    renameStatus
+                        .css({ color: 'red', background: '#fbeae5', borderColor: '#dc3232', display: 'block' })
+                        .text('<?php echo esc_js(__('Request failed. Please try again.', 'acmqr')); ?>');
+                })
+                .always(function () {
+                    saveBtn.prop('disabled', false).text('<?php echo esc_js(__('Rename Group', 'acmqr')); ?>');
                 });
             });
 
@@ -835,6 +991,70 @@ class CertManager_Admin_UI
 
         wp_send_json_success([
             'message' => sprintf(__('Entry #%d updated successfully.', 'acmqr'), $id),
+        ]);
+    }
+
+    /* -------------------------------------------------------
+     * AJAX: rename a certificate group (cert_name) across all entries
+     * ----------------------------------------------------- */
+
+    public function handle_rename_cert_group(): void
+    {
+        $this->verify_ajax('cison_rename_group_nonce', 'nonce');
+
+        global $wpdb;
+
+        $old_name = sanitize_text_field(wp_unslash($_POST['old_name'] ?? ''));
+        $new_name = sanitize_text_field(wp_unslash($_POST['new_name'] ?? ''));
+
+        if ($old_name === '' || $new_name === '') {
+            wp_send_json_error(['message' => __('Both the current and new group names are required.', 'acmqr')]);
+        }
+
+        if ($old_name === $new_name) {
+            wp_send_json_error(['message' => __('The new name must be different from the current name.', 'acmqr')]);
+        }
+
+        $group_count = (int) $wpdb->get_var(
+            $wpdb->prepare("SELECT COUNT(*) FROM {$this->registry_table} WHERE cert_name = %s", $old_name)
+        );
+
+        if ($group_count === 0) {
+            wp_send_json_error(['message' => __('Certificate group not found.', 'acmqr')]);
+        }
+
+        $conflict_count = (int) $wpdb->get_var(
+            $wpdb->prepare("SELECT COUNT(*) FROM {$this->registry_table} WHERE cert_name = %s", $new_name)
+        );
+
+        if ($conflict_count > 0) {
+            wp_send_json_error([
+                'message' => __('A certificate group with that name already exists. Choose a different name.', 'acmqr'),
+            ]);
+        }
+
+        $updated = $wpdb->update(
+            $this->registry_table,
+            ['cert_name' => $new_name],
+            ['cert_name' => $old_name],
+            ['%s'],
+            ['%s']
+        );
+
+        if ($updated === false) {
+            wp_send_json_error([
+                'message' => __('Rename failed: ', 'acmqr') . $wpdb->last_error,
+            ]);
+        }
+
+        wp_send_json_success([
+            'message' => sprintf(
+                __('Certificate group "%1$s" renamed to "%2$s" (%3$d entr%s updated).', 'acmqr'),
+                $old_name,
+                $new_name,
+                $updated,
+                $updated === 1 ? 'y' : 'ies'
+            ),
         ]);
     }
 
