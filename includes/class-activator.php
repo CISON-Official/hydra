@@ -25,10 +25,12 @@ class Activator
 
         $templates_sql = DatabaseSchema::get_templates_table_sql($wpdb);
         $registry_sql = DatabaseSchema::get_registry_table_sql($wpdb);
+        $student_certificates_sql = DatabaseSchema::get_student_certificates_table_sql($wpdb);
 
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         dbDelta($templates_sql);
         dbDelta($registry_sql);
+        dbDelta($student_certificates_sql);
     }
 
     private static function seed_default_templates(): void

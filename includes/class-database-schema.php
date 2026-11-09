@@ -19,6 +19,38 @@ class DatabaseSchema
         ) $charset_collate;";
     }
 
+    public static function get_student_certificates_table_sql($wpdb)
+    {
+        $table_name = $wpdb->prefix . 'student_certificates';
+        $charset_collate = $wpdb->get_charset_collate();
+
+        return "CREATE TABLE $table_name (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            user_id bigint(20) unsigned NOT NULL,
+            student_number varchar(100) NOT NULL,
+            student_name varchar(255) NOT NULL,
+            student_email varchar(255) NOT NULL,
+            programme varchar(255) NOT NULL,
+            certificate_title varchar(255) NOT NULL,
+            cert_type varchar(100) NOT NULL,
+            cert_key varchar(255) NOT NULL,
+            cert_hmac varchar(255) NOT NULL,
+            status enum('issued','revoked','expired') NOT NULL DEFAULT 'issued',
+            date_issued datetime NOT NULL,
+            date_expiry datetime DEFAULT NULL,
+            file_url varchar(255) DEFAULT NULL,
+            revoked_at datetime DEFAULT NULL,
+            revocation_reason varchar(500) DEFAULT NULL,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY cert_key (cert_key),
+            KEY idx_user (user_id),
+            KEY idx_status (status),
+            KEY idx_expiry (date_expiry)
+        ) $charset_collate;";
+    }
+
     public static function get_registry_table_sql($wpdb)
     {
         $table_name = $wpdb->prefix . 'cert_registry';
